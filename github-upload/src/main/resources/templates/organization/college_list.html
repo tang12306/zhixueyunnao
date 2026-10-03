@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>学院管理</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>学院管理</h1>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/organization/colleges}" method="get" class="form-inline">
+            <label for="schoolFilter">选择学校:</label>
+            <select id="schoolFilter" name="schoolId" class="form-control" onchange="this.form.submit()">
+                <option value="">所有学校</option> <!-- Allow viewing all colleges -->
+                <option th:each="s : ${schools}" 
+                        th:value="${s.id}" 
+                        th:text="${s.name}"
+                        th:selected="${selectedSchool != null && selectedSchool.id == s.id}">School Name</option>
+            </select>
+        </form>
+        <br>
+
+        <p><a th:href="@{/organization/colleges/form(schoolId=${selectedSchool?.id})}" class="btn btn-primary">添加新学院</a></p>
+
+        <h3 th:if="${selectedSchool}" th:text="${selectedSchool.name} + ' - 学院列表'"></h3>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>学院名称</th>
+                    <th>所属学校</th>
+                    <th>描述</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="college : ${colleges}">
+                    <td th:text="${college.id}"></td>
+                    <td th:text="${college.name}"></td>
+                    <td th:text="${college.school?.name}"></td>
+                    <td th:text="${college.description}"></td>
+                    <td>
+                        <a th:href="@{/organization/colleges/form(id=${college.id}, schoolId=${college.school?.id})}" class="btn btn-sm btn-warning">编辑</a>
+                        <form th:action="@{/organization/colleges/delete/{id}(id=${college.id})}" method="post" style="display:inline;" onsubmit="return confirm('确定删除该学院吗？其下所有专业、班级等都将被删除！');">
+                            <input type="hidden" name="_method" value="delete" />
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                        <a th:href="@{/organization/majors(collegeId=${college.id})}" class="btn btn-sm btn-info">查看专业</a>
+                    </td>
+                </tr>
+                <tr th:if="${colleges == null || colleges.isEmpty()}">
+                    <td colspan="5" style="text-align: center;">暂无学院信息，请先选择学校或添加学院。</td>
+                </tr>
+            </tbody>
+        </table>
+        <a th:href="@{/organization/schools}" class="btn btn-secondary">返回学校列表</a>
+        <a th:href="@{/}" class="btn btn-secondary" style="margin-left: 10px;">返回首页</a>
+    </div>
+</body>
+</html> 

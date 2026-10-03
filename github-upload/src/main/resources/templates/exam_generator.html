@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security6">
+<head>
+    <title>自动出题 - 教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: white;
+        }
+        .logout-btn {
+            background-color: transparent;
+            border: 1px solid white;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .main-content {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .form-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .form-title {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .chapter-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .chapter-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .chapter-item input {
+            margin-right: 0.5rem;
+        }
+        .question-counts {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .count-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .count-item label {
+            margin-bottom: 0.5rem;
+        }
+        .count-item input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            background-color: #4CAF50;
+            color: white;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .exam-type-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .exam-type-option {
+            flex: 1;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .exam-type-option.active {
+            border-color: #4CAF50;
+            background-color: #e8f5e9;
+        }
+        .exam-type-option h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>自动出题</h1>
+        <div class="user-info">
+            <span sec:authorize="isAuthenticated()" sec:authentication="name">用户名</span>
+            <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="margin: 0;">
+                <button type="submit" class="logout-btn">退出登录</button>
+            </form>
+            <a href="/" style="color: white; text-decoration: none; margin-left: 10px;">返回首页</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="form-container">
+            <h2 class="form-title">自动组卷</h2>
+            
+            <form th:action="@{/exam-generator/generate}" method="post" id="generatorForm" onsubmit="return validateForm()">
+                <div class="form-group">
+                    <label for="examName">考试名称</label>
+                    <input type="text" id="examName" name="examName" required placeholder="请输入考试名称">
+                </div>
+                
+                <div class="form-group">
+                    <label>考试类型</label>
+                    <div class="exam-type-selector">
+                        <div class="exam-type-option active" data-type="chapter" onclick="selectExamType('chapter')">
+                            <h3>章节测试</h3>
+                            <p>从选定章节中出题</p>
+                        </div>
+                        <div class="exam-type-option" data-type="midterm" onclick="selectExamType('midterm')">
+                            <h3>期中测试</h3>
+                            <p>从前半部分章节出题</p>
+                        </div>
+                        <div class="exam-type-option" data-type="final" onclick="selectExamType('final')">
+                            <h3>期末测试</h3>
+                            <p>从所有章节出题</p>
+                        </div>
+                    </div>
+                    <input type="hidden" name="examType" id="examType" value="chapter">
+                </div>
+                
+                <div class="form-group">
+                    <label for="subjectId">选择学科</label>
+                    <select id="subjectId" name="subjectId" required onchange="loadChapters()">
+                        <option value="">-- 请选择学科 --</option>
+                        <option th:each="subject : ${subjects}" 
+                                th:value="${subject.id}" 
+                                th:text="${subject.name}">
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="chapterSelector">
+                    <label>选择章节</label>
+                    <div class="chapter-list" id="chapterList">
+                        <p>请先选择学科</p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>题目数量设置</label>
+                    <div class="question-counts">
+                        <div class="count-item">
+                            <label>选择题</label>
+                            <input type="number" name="count_CHOICE" value="5" min="0">
+                        </div>
+                        <div class="count-item">
+                            <label>填空题</label>
+                            <input type="number" name="count_FILL_BLANK" value="3" min="0">
+                        </div>
+                        <div class="count-item">
+                            <label>判断题</label>
+                            <input type="number" name="count_TRUE_FALSE" value="5" min="0">
+                        </div>
+                        <div class="count-item">
+                            <label>简答题</label>
+                            <input type="number" name="count_SHORT_ANSWER" value="2" min="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>选择目标班级</label>
+                    <div class="chapter-list">
+                        <div th:if="${classes != null && !classes.isEmpty()}">
+                            <div class="chapter-item" th:each="class : ${classes}">
+                                <input type="checkbox" name="classIds" th:value="${class.id}" th:id="'class_' + ${class.id}">
+                                <label th:for="'class_' + ${class.id}" th:text="${class.name}">班级名称</label>
+                            </div>
+                        </div>
+                        <p th:if="${classes == null || classes.isEmpty()}">暂无可选班级</p>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn">生成试卷</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 选择考试类型
+        function selectExamType(type) {
+            // 更新隐藏字段的值
+            document.getElementById('examType').value = type;
+            
+            // 更新UI样式
+            const options = document.querySelectorAll('.exam-type-option');
+            options.forEach(option => {
+                if (option.getAttribute('data-type') === type) {
+                    option.classList.add('active');
+                } else {
+                    option.classList.remove('active');
+                }
+            });
+            
+            // 根据考试类型显示/隐藏章节选择器
+            const chapterSelector = document.getElementById('chapterSelector');
+            if (type === 'chapter') {
+                chapterSelector.style.display = 'block';
+            } else {
+                chapterSelector.style.display = 'none';
+            }
+        }
+        
+        // 加载章节
+        function loadChapters() {
+            const subjectId = document.getElementById('subjectId').value;
+            if (!subjectId) {
+                document.getElementById('chapterList').innerHTML = '<p>请先选择学科</p>';
+                return;
+            }
+            
+            fetch('/exam-generator/chapters?subjectId=' + subjectId)
+                .then(response => response.json())
+                .then(chapters => {
+                    let html = '';
+                    if (chapters.length === 0) {
+                        html = '<p>该学科下暂无章节</p>';
+                    } else {
+                        chapters.forEach(chapter => {
+                            html += `
+                                <div class="chapter-item">
+                                    <input type="checkbox" name="chapterIds" value="${chapter.id}" id="chapter_${chapter.id}">
+                                    <label for="chapter_${chapter.id}">${chapter.name}</label>
+                                </div>
+                            `;
+                        });
+                    }
+                    document.getElementById('chapterList').innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading chapters:', error);
+                    document.getElementById('chapterList').innerHTML = '<p>加载章节失败</p>';
+                });
+        }
+        
+        // 验证表单
+        function validateForm() {
+            const examType = document.getElementById('examType').value;
+            const subjectId = document.getElementById('subjectId').value;
+            const examName = document.getElementById('examName').value;
+            
+            if (!examName) {
+                alert('请输入考试名称');
+                return false;
+            }
+            
+            if (!subjectId) {
+                alert('请选择学科');
+                return false;
+            }
+            
+            // 章节测试模式下需要选择章节
+            if (examType === 'chapter') {
+                const selectedChapters = document.querySelectorAll('input[name="chapterIds"]:checked');
+                if (selectedChapters.length === 0) {
+                    alert('请至少选择一个章节');
+                    return false;
+                }
+            }
+            
+            // 验证题目数量
+            const choiceCount = parseInt(document.getElementById('count_CHOICE').value) || 0;
+            const fillBlankCount = parseInt(document.getElementById('count_FILL_BLANK').value) || 0;
+            const trueFalseCount = parseInt(document.getElementById('count_TRUE_FALSE').value) || 0;
+            const shortAnswerCount = parseInt(document.getElementById('count_SHORT_ANSWER').value) || 0;
+            
+            if (choiceCount + fillBlankCount + trueFalseCount + shortAnswerCount === 0) {
+                alert('请至少设置一种题型的数量');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 默认选择章节测试模式
+            selectExamType('chapter');
+        });
+    </script>
+</body>
+</html> 

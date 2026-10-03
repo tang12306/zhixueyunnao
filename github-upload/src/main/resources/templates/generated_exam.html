@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security6">
+<head>
+    <title>生成的试卷 - 教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: white;
+        }
+        .logout-btn {
+            background-color: transparent;
+            border: 1px solid white;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .main-content {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .paper-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .paper-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #eee;
+        }
+        .paper-header h2 {
+            margin: 0 0 0.5rem 0;
+        }
+        .paper-info {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .question-section {
+            margin-bottom: 2rem;
+        }
+        .question-section h3 {
+            margin-top: 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        .question-item {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px dashed #eee;
+        }
+        .question-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .question-content {
+            margin-bottom: 0.5rem;
+        }
+        .question-options {
+            margin-left: 1.5rem;
+        }
+        .btn-group {
+            margin-top: 2rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #f1f1f1;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>生成的试卷</h1>
+        <div class="user-info">
+            <span sec:authorize="isAuthenticated()" sec:authentication="name">用户名</span>
+            <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="margin: 0;">
+                <button type="submit" class="logout-btn">退出登录</button>
+            </form>
+            <a href="/" style="color: white; text-decoration: none; margin-left: 10px;">返回首页</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="paper-container">
+            <div class="paper-header">
+                <h2 th:text="${subject.name + ' - ' + 
+                              (examType == 'chapter' ? '章节测试' : 
+                               examType == 'midterm' ? '期中考试' : '期末考试')}">
+                    数学 - 期末考试
+                </h2>
+                <div class="paper-info">
+                    总题目数：<span th:text="${allQuestions.size()}">15</span> 题
+                </div>
+            </div>
+            
+            <!-- 选择题部分 -->
+            <div class="question-section" th:if="${questionsByType.containsKey('CHOICE') && !questionsByType.get('CHOICE').isEmpty()}">
+                <h3>一、选择题（每题 5 分，共 <span th:text="${questionsByType.get('CHOICE').size() * 5}">25</span> 分）</h3>
+                <div class="question-item" th:each="question, qStat : ${questionsByType.get('CHOICE')}">
+                    <div class="question-title" th:text="${qStat.count + '. ' + question.title}">1. 下列哪个选项是正确的？</div>
+                    <div class="question-content" th:text="${question.content}">请仔细阅读以下选项，选择正确的答案。</div>
+                    <div class="question-options">
+                        <div th:if="${question.options != null}">
+                            <div th:each="option, optStat : ${#strings.arraySplit(question.options, '\n')}">
+                                <div th:text="${'（' + #strings.toLowerCase(#strings.substring('ABCDEFGHIJKLMN', optStat.index, optStat.index + 1)) + '）' + option}">（a）选项内容</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 填空题部分 -->
+            <div class="question-section" th:if="${questionsByType.containsKey('FILL_BLANK') && !questionsByType.get('FILL_BLANK').isEmpty()}">
+                <h3>二、填空题（每题 4 分，共 <span th:text="${questionsByType.get('FILL_BLANK').size() * 4}">20</span> 分）</h3>
+                <div class="question-item" th:each="question, qStat : ${questionsByType.get('FILL_BLANK')}">
+                    <div class="question-title" th:text="${qStat.count + '. ' + question.title}">1. 完成下列填空</div>
+                    <div class="question-content" th:text="${question.content}">在横线处填入适当的内容。</div>
+                </div>
+            </div>
+            
+            <!-- 判断题部分 -->
+            <div class="question-section" th:if="${questionsByType.containsKey('TRUE_FALSE') && !questionsByType.get('TRUE_FALSE').isEmpty()}">
+                <h3>三、判断题（每题 3 分，共 <span th:text="${questionsByType.get('TRUE_FALSE').size() * 3}">15</span> 分）</h3>
+                <div class="question-item" th:each="question, qStat : ${questionsByType.get('TRUE_FALSE')}">
+                    <div class="question-title" th:text="${qStat.count + '. ' + question.title}">1. 判断以下说法是否正确</div>
+                    <div class="question-content" th:text="${question.content}">这是一道判断题的内容。</div>
+                </div>
+            </div>
+            
+            <!-- 简答题部分 -->
+            <div class="question-section" th:if="${questionsByType.containsKey('SHORT_ANSWER') && !questionsByType.get('SHORT_ANSWER').isEmpty()}">
+                <h3>四、简答题（每题 10 分，共 <span th:text="${questionsByType.get('SHORT_ANSWER').size() * 10}">40</span> 分）</h3>
+                <div class="question-item" th:each="question, qStat : ${questionsByType.get('SHORT_ANSWER')}">
+                    <div class="question-title" th:text="${qStat.count + '. ' + question.title}">1. 简述以下问题</div>
+                    <div class="question-content" th:text="${question.content}">这是一道简答题的内容。</div>
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <a href="javascript:window.print()" class="btn btn-primary">打印试卷</a>
+                <a th:href="@{/exam-generator}" class="btn btn-secondary">返回出题页</a>
+                <form th:action="@{/exam-generator/save-exam}" method="post">
+                    <!-- 隐藏字段 -->
+                    <input type="hidden" name="examName" th:value="${examName}">
+                    <input type="hidden" name="subjectId" th:value="${subject.id}">
+                    <input type="hidden" name="examType" th:value="${examType}">
+                    <input type="hidden" th:each="question : ${allQuestions}" name="questionIds" th:value="${question.id}">
+                    <input type="hidden" th:if="${classIds != null}" th:each="classId : ${classIds}" name="classIds" th:value="${classId}">
+                    <button type="submit" class="btn btn-primary">保存到考试管理</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

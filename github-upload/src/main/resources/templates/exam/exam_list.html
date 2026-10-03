@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>考试列表</title>
+    <meta charset="UTF-8">
+    <!-- Add basic styling -->
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"> 
+</head>
+<body>
+    <div class="container">
+        <h1>考试列表</h1>
+        
+        <div th:if="${errorMessage}" class="alert alert-danger">
+            <p th:text="${errorMessage}"></p>
+        </div>
+
+        <div>
+            <a th:href="@{/exams/new}" class="btn btn-primary">创建新考试</a>
+        </div>
+        <br>
+
+        <!-- Filter/Search Form -->
+        <form th:action="@{/exams}" method="get" class="form-inline">
+            <input type="text" name="keyword" th:value="${keyword}" placeholder="关键词搜索" class="form-control mb-2 mr-sm-2">
+            <select name="subjectId" class="form-control mb-2 mr-sm-2">
+                <option value="">所有学科</option>
+                <option th:each="subject : ${subjects}" 
+                        th:value="${subject.id}" 
+                        th:text="${subject.name}"
+                        th:selected="${subject.id == selectedSubjectId}">学科</option>
+            </select>
+            <button type="submit" class="btn btn-info mb-2">搜索</button>
+        </form>
+        <br>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>考试名称</th>
+                    <th>学科</th>
+                    <th>类型</th>
+                    <th>状态</th>
+                    <th>考试日期</th>
+                    <th>总分</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="exam : ${exams.content}">
+                    <td th:text="${exam.id}"></td>
+                    <td th:text="${exam.name}"></td>
+                    <td th:text="${exam.subject?.name}"></td>
+                    <td th:text="${exam.examType}"></td>
+                    <td th:text="${exam.status}"></td>
+                    <td th:text="${#dates.format(exam.examDate, 'yyyy-MM-dd HH:mm')}"></td>
+                    <td th:text="${exam.totalScore}"></td>
+                    <td>
+                        <a th:href="@{/exams/{id}(id=${exam.id})}" class="btn btn-sm btn-info">详情</a>
+                        <a th:href="@{/exams/edit/{id}(id=${exam.id})}" class="btn btn-sm btn-warning">编辑</a>
+                        <form th:action="@{/exams/delete/{id}(id=${exam.id})}" method="post" style="display:inline;" onsubmit="return confirm('确定删除该考试吗?');">
+                            <input type="hidden" name="_method" value="delete" />
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                <tr th:if="${exams.empty}">
+                    <td colspan="8" style="text-align: center;">暂无考试信息</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <nav aria-label="Page navigation" th:if="${exams.totalPages > 0}">
+            <ul class="pagination">
+                <li class="page-item" th:classappend="${exams.first} ? 'disabled'">
+                    <a class="page-link" th:href="@{/exams(page=${exams.number-1}, size=${exams.size}, keyword=${keyword}, subjectId=${selectedSubjectId})}">上一页</a>
+                </li>
+                <li class="page-item" th:each="i : ${#numbers.sequence(0, exams.totalPages - 1)}" th:classappend="${i == exams.number} ? 'active'">
+                    <a class="page-link" th:href="@{/exams(page=${i}, size=${exams.size}, keyword=${keyword}, subjectId=${selectedSubjectId})}" th:text="${i+1}"></a>
+                </li>
+                <li class="page-item" th:classappend="${exams.last} ? 'disabled'">
+                    <a class="page-link" th:href="@{/exams(page=${exams.number+1}, size=${exams.size}, keyword=${keyword}, subjectId=${selectedSubjectId})}">下一页</a>
+                </li>
+            </ul>
+        </nav>
+        <br>
+        <a th:href="@{/}" class="btn btn-secondary">返回首页</a>
+    </div>
+</body>
+</html> 

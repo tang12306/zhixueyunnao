@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security6">
+<head>
+    <title>题库管理 - 教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: white;
+        }
+        .logout-btn {
+            background-color: transparent;
+            border: 1px solid white;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .main-content {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        .search-box {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 300px;
+        }
+        .add-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .question-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .question-table th,
+        .question-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .question-table th {
+            background-color: #f8f9fa;
+        }
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
+        .edit-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 2rem;
+            gap: 0.5rem;
+        }
+        .pagination a {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #333;
+        }
+        .pagination a.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+        .pagination a:hover:not(.active) {
+            background-color: #f5f5f5;
+        }
+        .pagination-info {
+            text-align: center;
+            margin-top: 1rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>题库管理</h1>
+        <div class="user-info">
+            <span sec:authorize="isAuthenticated()" sec:authentication="name">用户名</span>
+            <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="margin: 0;">
+                <button type="submit" class="logout-btn">退出登录</button>
+            </form>
+            <a href="/" style="color: white; text-decoration: none; margin-left: 10px;">返回首页</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- 成功/错误消息显示 -->
+        <div th:if="${successMessage}" class="alert alert-success" style="padding: 15px; margin-bottom: 20px; border: 1px solid #d6e9c6; border-radius: 4px; color: #3c763d; background-color: #dff0d8;">
+            <span th:text="${successMessage}"></span>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger" style="padding: 15px; margin-bottom: 20px; border: 1px solid #ebccd1; border-radius: 4px; color: #a94442; background-color: #f2dede;">
+            <span th:text="${errorMessage}"></span>
+            
+            <!-- 导入错误详情 -->
+            <div th:if="${errorDetails != null && !errorDetails.empty}" style="margin-top: 10px;">
+                <button onclick="toggleErrorDetails()" class="btn" style="padding: 5px 10px; background-color: #d9534f; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                    显示/隐藏错误详情
+                </button>
+                <div id="errorDetailsList" style="display: none; margin-top: 10px; max-height: 200px; overflow-y: auto; background-color: #f9f2f2; padding: 10px; border-radius: 4px;">
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li th:each="error : ${errorDetails}" th:text="${error}" style="margin-bottom: 5px;"></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="toolbar">
+            <form th:action="@{/questions}" method="get" style="display: flex; gap: 1rem;">
+                <input type="text" name="keyword" th:value="${keyword}" class="search-box" placeholder="搜索题目...">
+                <button type="submit" class="add-btn">搜索</button>
+            </form>
+            <div style="display: flex; gap: 1rem;">
+                <form th:action="@{/questions/import}" method="post" enctype="multipart/form-data" style="display: flex; gap: 1rem;">
+                    <input type="file" name="file" accept=".xlsx,.xls" required>
+                    <button type="submit" class="add-btn">导入</button>
+                </form>
+                <a th:href="@{/questions/export-template}" class="add-btn" style="text-decoration: none; text-align: center; display: flex; align-items: center;">下载模板</a>
+                <a th:href="@{/questions/export}" class="add-btn" style="text-decoration: none; text-align: center; display: flex; align-items: center;">导出题库</a>
+                <button class="add-btn" onclick="location.href='/questions/new'">添加题目</button>
+            </div>
+        </div>
+
+        <!-- 导入使用说明 -->
+        <div class="import-guide" style="margin-bottom: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px; border-left: 4px solid #4CAF50;">
+            <h4 style="margin-top: 0; color: #4CAF50;">Excel导入说明</h4>
+            <ol style="margin-bottom: 0; padding-left: 20px;">
+                <li>点击"<strong>下载模板</strong>"获取正确格式的Excel模板</li>
+                <li>按照模板中的说明填写题目数据（<strong>特别注意科目名称必须与系统中已有科目完全一致</strong>）</li>
+                <li>选择已填写好的Excel文件，点击"<strong>导入</strong>"按钮</li>
+                <li>如导入失败，请查看错误详情，修改Excel后重试</li>
+            </ol>
+        </div>
+
+        <div class="filter-panel" style="margin-bottom: 1rem; padding: 1rem; background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <form th:action="@{/questions}" method="get" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="subjectFilter" style="display: block; margin-bottom: 0.5rem;">学科</label>
+                    <select id="subjectFilter" name="subjectId" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;" onchange="loadChapters()">
+                        <option value="">-- 全部学科 --</option>
+                        <option th:each="subject : ${subjects}" 
+                                th:value="${subject.id}" 
+                                th:text="${subject.name}"
+                                th:selected="${selectedSubject != null && selectedSubject.id == subject.id}">
+                        </option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="chapterFilter" style="display: block; margin-bottom: 0.5rem;">章节</label>
+                    <select id="chapterFilter" name="chapterId" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">-- 全部章节 --</option>
+                        <option th:if="${chapters != null}" 
+                                th:each="chapter : ${chapters}" 
+                                th:value="${chapter.id}" 
+                                th:text="${chapter.name}"
+                                th:selected="${selectedChapter != null && selectedChapter.id == chapter.id}">
+                        </option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="typeFilter" style="display: block; margin-bottom: 0.5rem;">题型</label>
+                    <select id="typeFilter" name="type" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">-- 全部题型 --</option>
+                        <option value="CHOICE" th:selected="${selectedType == 'CHOICE'}">选择题</option>
+                        <option value="FILL_BLANK" th:selected="${selectedType == 'FILL_BLANK'}">填空题</option>
+                        <option value="TRUE_FALSE" th:selected="${selectedType == 'TRUE_FALSE'}">判断题</option>
+                        <option value="SHORT_ANSWER" th:selected="${selectedType == 'SHORT_ANSWER'}">简答题</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button type="submit" class="add-btn">筛选</button>
+                </div>
+            </form>
+        </div>
+
+        <table class="question-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>标题</th>
+                    <th>类型</th>
+                    <th>难度</th>
+                    <th>科目</th>
+                    <th>章节</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="question : ${questions}">
+                    <td th:text="${question.id}">1</td>
+                    <td th:text="${question.title}">示例题目</td>
+                    <td th:text="${question.type == 'CHOICE' || question.type == 'SINGLE_CHOICE' ? '选择题' : 
+                                  question.type == 'FILL_BLANK' ? '填空题' : 
+                                  question.type == 'TRUE_FALSE' ? '判断题' : '简答题'}">单选题</td>
+                    <td th:text="${question.difficulty}">中等</td>
+                    <td th:text="${question.chapter != null && question.chapter.subject != null ? question.chapter.subject.name : '未分类'}">数学</td>
+                    <td th:text="${question.chapter != null ? question.chapter.name : '未分类'}">第一章</td>
+                    <td>
+                        <button class="action-btn edit-btn" th:onclick="'location.href=\'/questions/edit/' + ${question.id} + '\''">编辑</button>
+                        <button class="action-btn delete-btn" th:onclick="'deleteQuestion(' + ${question.id} + ')'">删除</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            <a th:if="${currentPage > 0}" 
+               th:href="@{/questions(page=${currentPage - 1}, size=10, keyword=${keyword}, subjectId=${selectedSubject != null ? selectedSubject.id : ''}, chapterId=${selectedChapter != null ? selectedChapter.id : ''}, type=${selectedType})}">&laquo;</a>
+            
+            <a th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+               th:href="@{/questions(page=${i}, size=10, keyword=${keyword}, subjectId=${selectedSubject != null ? selectedSubject.id : ''}, chapterId=${selectedChapter != null ? selectedChapter.id : ''}, type=${selectedType})}"
+               th:text="${i + 1}"
+               th:class="${i == currentPage ? 'active' : ''}"></a>
+            
+            <a th:if="${currentPage < totalPages - 1}"
+               th:href="@{/questions(page=${currentPage + 1}, size=10, keyword=${keyword}, subjectId=${selectedSubject != null ? selectedSubject.id : ''}, chapterId=${selectedChapter != null ? selectedChapter.id : ''}, type=${selectedType})}">&raquo;</a>
+        </div>
+
+        <div class="pagination-info">
+            共 <span th:text="${totalItems}">0</span> 条记录，
+            当前第 <span th:text="${currentPage + 1}">1</span> 页，
+            共 <span th:text="${totalPages}">0</span> 页
+        </div>
+    </div>
+
+    <script>
+        function deleteQuestion(id) {
+            if (confirm('确定要删除这道题目吗？')) {
+                fetch('/questions/' + id, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(text || '删除失败');
+                        });
+                    }
+                    return response.text();
+                })
+                .then(() => {
+                    alert('删除成功');
+                    location.reload();
+                })
+                .catch(error => {
+                    console.error('删除题目失败:', error);
+                    alert('删除失败: ' + error.message);
+                });
+            }
+        }
+        
+        function editQuestion(id) {
+            window.location.href = '/questions/edit/' + id;
+        }
+        
+        function loadChapters() {
+            const subjectId = document.getElementById('subjectFilter').value;
+            const chapterSelect = document.getElementById('chapterFilter');
+            // 清空当前章节选项
+            chapterSelect.innerHTML = '<option value="">-- 全部章节 --</option>';
+            if (subjectId) {
+                fetch(`/questions/chapters-by-subject?subjectId=${subjectId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('获取章节失败');
+                        }
+                        return response.json();
+                    })
+                    .then(chapters => {
+                        const selectedChapterId = getUrlParam('chapterId');
+                        chapters.forEach(chapter => {
+                            const option = document.createElement('option');
+                            option.value = chapter.id;
+                            option.textContent = chapter.name;
+                            if (selectedChapterId && selectedChapterId == chapter.id) {
+                                option.selected = true;
+                            }
+                            chapterSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('加载章节失败:', error);
+                        alert('加载章节失败: ' + error.message);
+                    });
+            }
+        }
+        
+        // 获取URL参数
+        function getUrlParam(name) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name);
+        }
+        
+        // 显示/隐藏错误详情
+        function toggleErrorDetails() {
+            const errorList = document.getElementById('errorDetailsList');
+            if (errorList) {
+                errorList.style.display = errorList.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+        
+        // 页面加载完成后，如果已经选择了学科，重新加载章节数据
+        document.addEventListener('DOMContentLoaded', function() {
+            const subjectId = document.getElementById('subjectFilter').value;
+            if (subjectId) {
+                // 立即加载章节数据，以确保所有章节都被加载
+                loadChapters();
+            }
+        });
+    </script>
+</body>
+</html> 

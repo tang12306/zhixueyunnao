@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>导入成绩</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>导入学生成绩</h1>
+
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/statistics/scores/import}" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="examId">选择考试:</label>
+                <select id="examId" name="examId" class="form-control" required>
+                    <option value="">-- 请选择考试 --</option>
+                    <option th:each="exam : ${exams}" 
+                            th:value="${exam.id}" 
+                            th:text="${exam.name + ' (' + exam.subject?.name + ')'}">Exam Name</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="classId">选择班级:</label>
+                <select id="classId" name="classId" class="form-control" required>
+                    <option value="">-- 请选择班级 --</option>
+                    <option th:each="class : ${classes}" 
+                            th:value="${class.id}" 
+                            th:text="${class.name + ' (' + class.major?.name + ')'}">Class Name</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="file">上传Excel文件:</label>
+                <input type="file" id="file" name="file" class="form-control-file" required accept=".xlsx,.xls"/>
+                <small class="form-text text-muted">
+                    Excel文件格式要求：第一行为表头（例如：学号, 姓名, 分数）。从第二行开始导入数据。
+                    确保学号、姓名与系统中学生信息匹配以便正确关联成绩，或者系统将尝试根据学号和姓名创建/更新学生条目（如果`ScoreService`支持此逻辑）。
+                </small>
+            </div>
+
+            <button type="submit" class="btn btn-primary">开始导入</button>
+            <a th:href="@{/statistics}" class="btn btn-secondary">返回统计首页</a>
+        </form>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>学生成绩分析</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>学生个人成绩分析</h1>
+
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/statistics/scores/student-analysis}" method="get">
+            <div class="form-group">
+                <label for="studentId">选择学生:</label>
+                <select id="studentId" name="studentId" class="form-control" required>
+                    <option value="">-- 请选择学生 --</option>
+                    <option th:each="s : ${allStudents}" 
+                            th:value="${s.id}" 
+                            th:text="${s.name + (s.studentId != null ? ' (' + s.studentId + ')' : '')}"
+                            th:selected="${selectedStudent != null && selectedStudent.id == s.id}">Student Name</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="subjectId">选择学科 (可选):</label>
+                <select id="subjectId" name="subjectId" class="form-control">
+                    <option value="">-- 所有学科 --</option>
+                    <option th:each="sub : ${allSubjects}" 
+                            th:value="${sub.id}" 
+                            th:text="${sub.name}"
+                            th:selected="${selectedSubject != null && selectedSubject.id == sub.id}">Subject Name</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">生成分析图</button>
+            <a th:href="@{/statistics}" class="btn btn-secondary">返回统计首页</a>
+        </form>
+
+        <hr th:if="${analysisDataReady}"/>
+
+        <div th:if="${analysisDataReady}">
+            <h3 th:text="'学生: ' + ${selectedStudent.name} + ${selectedSubject != null ? ' - ' + selectedSubject.name : ''} + ' - 成绩趋势'">成绩趋势</h3>
+            
+            <div th:if="${trendData != null && trendData.examNames != null && !trendData.examNames.isEmpty()}">
+                <!-- Score Trend Chart -->
+                <div style="width: 80%; margin: 20px auto;">
+                    <canvas id="scoreTrendChart"></canvas>
+                </div>
+                <!-- Rank Trend Chart -->
+                <div style="width: 80%; margin: 20px auto;">
+                    <canvas id="rankTrendChart"></canvas>
+                </div>
+                
+                <h4>详细数据:</h4>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>考试名称</th>
+                            <th>分数</th>
+                            <th>班级排名 (若有)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="i : ${#numbers.sequence(0, trendData.examNames.size() - 1)}">
+                            <td th:text="${trendData.examNames[i]}"></td>
+                            <td th:text="${#numbers.formatDecimal(trendData.scores[i], 1, 2)}"></td>
+                            <td th:text="${trendData.ranks[i] != null && trendData.ranks[i] > 0 ? trendData.ranks[i] : 'N/A'}"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div th:if="${trendData == null || trendData.examNames == null || trendData.examNames.isEmpty()}">
+                <p>未找到该学生的成绩数据或所选学科的成绩数据。</p>
+            </div>
+        </div>
+
+    </div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+document.addEventListener('DOMContentLoaded', function() {
+    var analysisDataReady = /*[[${analysisDataReady}]]*/ false;
+    if (analysisDataReady) {
+        var trendData = /*[[${trendData}]]*/ null;
+
+        if (trendData && trendData.examNames && trendData.examNames.length > 0) {
+            var examNames = trendData.examNames;
+            var scores = trendData.scores;
+            var ranks = trendData.ranks; // May contain nulls or 0s if rank is not available
+
+            // Score Trend Chart
+            var scoreCtx = document.getElementById('scoreTrendChart').getContext('2d');
+            new Chart(scoreCtx, {
+                type: 'line',
+                data: {
+                    labels: examNames,
+                    datasets: [{
+                        label: '历次考试分数',
+                        data: scores,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: '同学科分数变化趋势' }
+                    },
+                    scales: { y: { beginAtZero: true, suggestedMax: 100 } }
+                }
+            });
+
+            // Rank Trend Chart (only if rank data is meaningful)
+            // Filter out exams where rank is not available (null or 0)
+            let rankLabels = [];
+            let rankValues = [];
+            if (ranks) {
+                for(let i = 0; i < ranks.length; i++){
+                    if(ranks[i] != null && ranks[i] > 0){
+                        rankLabels.push(examNames[i]);
+                        rankValues.push(ranks[i]);
+                    }
+                }
+            }
+
+            if (rankValues.length > 0) {
+                var rankCtx = document.getElementById('rankTrendChart').getContext('2d');
+                new Chart(rankCtx, {
+                    type: 'line',
+                    data: {
+                        labels: rankLabels,
+                        datasets: [{
+                            label: '班级名次变化',
+                            data: rankValues,
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                            title: { display: true, text: '班级名次变化趋势' }
+                        },
+                        scales: { y: { beginAtZero: false, reverse: true } } // Ranks are better when lower
+                    }
+                });
+            } else {
+                 var rankChartCanvas = document.getElementById('rankTrendChart');
+                 if(rankChartCanvas) rankChartCanvas.style.display = 'none'; // Hide if no rank data
+            }
+
+        } else {
+            console.log("No trend data available for student analysis charts.");
+            var scoreChartCanvas = document.getElementById('scoreTrendChart');
+            var rankChartCanvas = document.getElementById('rankTrendChart');
+            if(scoreChartCanvas) scoreChartCanvas.style.display = 'none';
+            if(rankChartCanvas) rankChartCanvas.style.display = 'none';
+        }
+    }
+});
+/*]]>*/
+</script>
+
+</body>
+</html> 

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>题目编辑 - 教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .main-content {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+        .btn-group {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .error-message {
+            color: #f44336;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>题目编辑</h1>
+        <a href="/questions" style="color: white; text-decoration: none;">返回题库</a>
+    </div>
+
+    <div class="main-content">
+        <form th:action="@{/questions}" th:object="${question}" method="post" id="questionForm">
+            <input type="hidden" th:field="*{id}">
+            
+            <div class="form-group">
+                <label for="title">题目标题</label>
+                <input type="text" id="title" th:field="*{title}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="content">题目内容</label>
+                <textarea id="content" th:field="*{content}" required></textarea>
+            </div>
+
+            <!-- 添加AI生成按钮 -->
+            <div class="form-group">
+                <button type="button" id="generateQuestionBtn" class="btn btn-primary">
+                    <span id="generateBtnText">AI生成题目</span>
+                    <span id="generateBtnLoading" style="display: none;">生成中...</span>
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label for="type">题目类型</label>
+                <select id="type" th:field="*{type}" required>
+                    <option value="CHOICE">选择题</option>
+                    <option value="FILL_BLANK">填空题</option>
+                    <option value="TRUE_FALSE">判断题</option>
+                    <option value="SHORT_ANSWER">简答题</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="options">选项（每行一个选项）</label>
+                <textarea id="options" name="optionsString" th:text="${optionsString}"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="answer">答案</label>
+                <textarea id="answer" th:field="*{answer}" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="analysis">解析</label>
+                <textarea id="analysis" th:field="*{analysis}"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="difficulty">难度</label>
+                <select id="difficulty" th:field="*{difficulty}" required>
+                    <option value="1">非常简单</option>
+                    <option value="2">简单</option>
+                    <option value="3">中等</option>
+                    <option value="4">困难</option>
+                    <option value="5">非常困难</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="subjectId">科目</label>
+                <select id="subjectId" name="subjectId" required onchange="loadChapters()">
+                    <option value="">-- 请选择科目 --</option>
+                    <option th:each="subject : ${subjects}" 
+                            th:value="${subject.id}" 
+                            th:text="${subject.name}"
+                            th:selected="${question.chapter != null && question.chapter.subject != null && question.chapter.subject.id == subject.id}">
+                    </option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="chapterId">章节</label>
+                <select id="chapterId" name="chapterId" required>
+                    <option value="">-- 请先选择科目 --</option>
+                    <option th:if="${chapters != null}" 
+                            th:each="chapter : ${chapters}" 
+                            th:value="${chapter.id}" 
+                            th:text="${chapter.name}"
+                            th:selected="${question.chapter != null && question.chapter.id == chapter.id}">
+                    </option>
+                </select>
+            </div>
+
+            <!-- 当前章节ID（用于编辑时保持选中） -->
+            <input type="hidden" id="currentChapterId" th:value="${question.chapter != null ? question.chapter.id : ''}">
+
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary">保存</button>
+                <a href="/questions" class="btn btn-secondary">取消</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function loadChapters() {
+            const subjectId = document.getElementById('subjectId').value;
+            const chapterSelect = document.getElementById('chapterId');
+            
+            // 清空当前章节选项
+            chapterSelect.innerHTML = '<option value="">-- 加载中... --</option>';
+            
+            if (subjectId) {
+                fetch(`/questions/chapters-by-subject?subjectId=${subjectId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('获取章节失败: ' + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(chapters => {
+                        console.log('加载到的章节数据:', chapters);
+                        chapterSelect.innerHTML = '';
+                        
+                        // 获取当前章节ID（如果是编辑场景）
+                        const currentChapterId = document.getElementById('currentChapterId').value;
+                        
+                        // 添加默认选项
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = "";
+                        defaultOption.textContent = chapters.length === 0 ? "-- 该科目下暂无章节 --" : "-- 请选择章节 --";
+                        chapterSelect.appendChild(defaultOption);
+                        
+                        if (chapters.length > 0) {
+                            chapters.forEach(chapter => {
+                                const option = document.createElement('option');
+                                option.value = chapter.id;
+                                option.textContent = chapter.name;
+                                chapterSelect.appendChild(option);
+                                
+                                // 如果是当前章节则选中
+                                if (currentChapterId && currentChapterId == chapter.id) {
+                                    option.selected = true;
+                                }
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('获取章节失败:', error);
+                        chapterSelect.innerHTML = '<option value="">-- 加载失败 --</option>';
+                    });
+            } else {
+                chapterSelect.innerHTML = '<option value="">-- 请先选择科目 --</option>';
+            }
+        }
+        
+        // 页面加载时，如果已经选择了科目，则加载对应的章节
+        document.addEventListener('DOMContentLoaded', function() {
+            const subjectId = document.getElementById('subjectId').value;
+            if (subjectId) {
+                // 主动加载章节数据，确保显示正确
+                loadChapters();
+            }
+            
+            // 获取URL中的错误信息
+            const urlParams = new URLSearchParams(window.location.search);
+            const errorMessage = urlParams.get('error');
+            if (errorMessage) {
+                // 显示错误消息
+                const form = document.getElementById('questionForm');
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = '保存失败: ' + decodeURIComponent(errorMessage);
+                form.prepend(errorDiv);
+            }
+        });
+    </script>
+
+    <!-- 在页面底部添加JavaScript代码 -->
+    <script th:inline="javascript">
+        document.getElementById('generateQuestionBtn').addEventListener('click', async function() {
+            const subject = document.getElementById('subjectId').value;
+            const chapter = document.getElementById('chapterId').value;
+            const type = document.getElementById('type').value;
+            
+            if (!subject || !chapter || !type) {
+                alert('请先选择科目、章节和题目类型');
+                return;
+            }
+            
+            // 显示加载状态
+            const btn = this;
+            const btnText = document.getElementById('generateBtnText');
+            const btnLoading = document.getElementById('generateBtnLoading');
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            
+            try {
+                console.log('开始发送请求...');
+                const requestBody = new URLSearchParams({
+                    subject: document.getElementById('subjectId').options[document.getElementById('subjectId').selectedIndex].text,
+                    chapter: document.getElementById('chapterId').options[document.getElementById('chapterId').selectedIndex].text,
+                    type: document.getElementById('type').options[document.getElementById('type').selectedIndex].text
+                });
+                console.log('请求参数:', requestBody.toString());
+                
+                const response = await fetch('/api/generate-question', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: requestBody
+                });
+                
+                console.log('收到响应:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('服务器返回错误:', errorText);
+                    throw new Error(errorText || '生成题目失败');
+                }
+                
+                const result = await response.text();
+                console.log('API返回结果:', result);
+                
+                // 解析返回的文本，填充到表单中
+                const lines = result.split('\n');
+                let content = '';
+                let answer = '';
+                let analysis = '';
+                let options = '';
+                
+                for (let line of lines) {
+                    if (line.startsWith('题目：')) {
+                        content = line.substring(3).trim();
+                    } else if (line.startsWith('选项：')) {
+                        options = line.substring(3).trim();
+                    } else if (line.startsWith('答案：')) {
+                        answer = line.substring(3).trim();
+                    } else if (line.startsWith('解析：')) {
+                        analysis = line.substring(3).trim();
+                    }
+                }
+                
+                document.getElementById('content').value = content;
+                document.getElementById('answer').value = answer;
+                if (document.getElementById('analysis')) {
+                    document.getElementById('analysis').value = analysis;
+                }
+                if (document.getElementById('options')) {
+                    document.getElementById('options').value = options;
+                }
+                
+            } catch (error) {
+                console.error('生成题目失败:', error);
+                alert('生成题目失败：' + error.message);
+            } finally {
+                // 恢复按钮状态
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html> 

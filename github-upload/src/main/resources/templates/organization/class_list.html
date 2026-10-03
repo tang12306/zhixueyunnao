@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>班级管理</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>班级管理</h1>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/organization/classes}" method="get" class="form-inline">
+            <label for="majorFilter">选择专业:</label>
+            <select id="majorFilter" name="majorId" class="form-control" onchange="this.form.submit()">
+                <option value="">所有专业</option>
+                <option th:each="m : ${majors}" 
+                        th:value="${m.id}" 
+                        th:text="${m.name + ' (' + m.college?.name + ')'}"
+                        th:selected="${selectedMajor != null && selectedMajor.id == m.id}">Major Name</option>
+            </select>
+        </form>
+        <br>
+
+        <p><a th:href="@{/organization/classes/form(majorId=${selectedMajor?.id})}" class="btn btn-primary">添加新班级</a></p>
+
+        <h3 th:if="${selectedMajor}" th:text="${selectedMajor.name} + ' - 班级列表'"></h3>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>班级名称</th>
+                    <th>年级</th>
+                    <th>所属专业</th>
+                    <th>学生人数</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="class : ${classes}">
+                    <td th:text="${class.id}"></td>
+                    <td th:text="${class.name}"></td>
+                    <td th:text="${class.grade}"></td>
+                    <td th:text="${class.major?.name}"></td>
+                    <td th:text="${class.studentCount}"></td>
+                    <td>
+                        <a th:href="@{/organization/classes/form(id=${class.id}, majorId=${class.major?.id})}" class="btn btn-sm btn-warning">编辑</a>
+                        <a th:href="@{/organization/classes/{classId}/students(classId=${class.id})}" class="btn btn-sm btn-info" style="margin-left: 5px; margin-right: 5px;">管理学生</a>
+                        <form th:action="@{/organization/classes/delete/{id}(id=${class.id})}" method="post" style="display:inline;" onsubmit="return confirm('确定删除该班级吗？');">
+                            <input type="hidden" name="_method" value="delete" />
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                        <!-- Potentially link to student list for this class -->
+                    </td>
+                </tr>
+                <tr th:if="${classes == null || classes.isEmpty()}">
+                    <td colspan="6" style="text-align: center;">暂无班级信息，请先选择专业或添加班级。</td>
+                </tr>
+            </tbody>
+        </table>
+        <a th:href="@{/organization/majors(collegeId=${selectedMajor?.college.id})}" class="btn btn-secondary">返回专业列表</a>
+        <a th:href="@{/}" class="btn btn-secondary" style="margin-left: 10px;">返回首页</a>
+    </div>
+</body>
+</html> 

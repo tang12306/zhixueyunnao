@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="${major.id == null ? '添加新专业' : '编辑专业'}">专业表单</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${major.id == null ? '添加新专业' : '编辑专业'}">专业表单</h1>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/organization/majors/save}" th:object="${major}" method="post">
+            <input type="hidden" th:field="*{id}"/>
+            
+            <div class="form-group">
+                <label for="college">所属学院:</label>
+                <select id="college" name="collegeId" class="form-control" required>
+                    <option value="">-- 选择学院 --</option>
+                    <option th:each="c : ${colleges}" 
+                            th:value="${c.id}" 
+                            th:text="${c.name + ' (' + c.school?.name + ')'}"
+                            th:selected="${major.college != null && major.college.id == c.id}">College Name</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="name">专业名称:</label>
+                <input type="text" id="name" th:field="*{name}" class="form-control" required/>
+            </div>
+
+            <div class="form-group">
+                <label for="code">专业代码:</label>
+                <input type="text" id="code" th:field="*{code}" class="form-control"/>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">描述:</label>
+                <textarea id="description" th:field="*{description}" class="form-control"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>选择关联学科:</label><br/>
+                <div th:each="s : ${allSubjects}" class="form-check form-check-inline">
+                    <input type="checkbox" name="subjectIds" th:value="${s.id}" 
+                           th:id="'subject_' + ${s.id}" class="form-check-input"
+                           th:checked="${major.subjects != null && #lists.contains(major.subjects.![id], s.id)}"/>
+                    <label th:for="'subject_' + ${s.id}" th:text="${s.name}" class="form-check-label"></label>
+                </div>
+                <div th:if="${allSubjects == null || allSubjects.isEmpty()}">暂无可选学科，请先添加学科。</div>
+            </div>
+            
+            <button type="submit" class="btn btn-success">保存</button>
+            <a th:href="@{/organization/majors(collegeId=${major.college?.id})}" class="btn btn-secondary">取消</a>
+        </form>
+    </div>
+</body>
+</html> 

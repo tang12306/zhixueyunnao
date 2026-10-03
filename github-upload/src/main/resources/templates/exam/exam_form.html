@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="${exam.id == null ? '创建新考试' : '编辑考试'}">考试表单</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${exam.id == null ? '创建新考试' : '编辑考试'}">考试表单</h1>
+
+        <div th:if="${errorMessage}" class="alert alert-danger">
+            <p th:text="${errorMessage}"></p>
+        </div>
+
+        <form th:action="@{/exams/save}" th:object="${exam}" method="post" id="examForm">
+            <input type="hidden" th:field="*{id}"/>
+            <input type="hidden" th:field="*{createTime}"/> <!-- Preserve createTime if editing -->
+
+            <div class="form-group">
+                <label for="name">考试名称:</label>
+                <input type="text" id="name" th:field="*{name}" class="form-control" required/>
+            </div>
+
+            <div class="form-group">
+                <label for="subject">学科:</label>
+                <select id="subject" name="subjectId" class="form-control" required>
+                    <option value="">-- 选择学科 --</option>
+                    <option th:each="s : ${subjects}" 
+                            th:value="${s.id}" 
+                            th:text="${s.name}"
+                            th:selected="${exam.subject != null && exam.subject.id == s.id}">学科</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="examType">考试类型:</label>
+                <input type="text" id="examType" th:field="*{examType}" class="form-control" placeholder="例如：期中, 期末, 章节测验"/>
+            </div>
+
+            <div class="form-group">
+                <label for="examDate">考试日期:</label>
+                <input type="datetime-local" id="examDate" th:field="*{examDateStr}" class="form-control"/>
+            </div>
+
+            <div class="form-group">
+                <label for="duration">考试时长 (分钟):</label>
+                <input type="number" id="duration" th:field="*{duration}" class="form-control"/>
+            </div>
+
+            <div class="form-group">
+                <label for="status">状态:</label>
+                <select id="status" th:field="*{status}" class="form-control">
+                    <option value="未开始">未开始</option>
+                    <option value="进行中">进行中</option>
+                    <option value="已结束">已结束</option>
+                    <option value="已批阅">已批阅</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="totalScoreDisplay">总分:</label>
+                <input type="number" id="totalScoreDisplay" th:value="*{totalScore}" class="form-control" readonly/>
+                 <small>总分根据所选题目自动计算。选择题目后，此处分值可能不会立即更新，以保存后为准。</small>
+            </div>
+            
+            <div class="form-group">
+                <label>选择目标班级:</label><br/>
+                <div th:each="c : ${classes}" class="form-check form-check-inline">
+                    <input type="checkbox" name="classIds" th:value="${c.id}" 
+                           th:id="'class_' + ${c.id}" class="form-check-input"
+                           th:checked="${exam.targetClasses != null && #lists.contains(exam.targetClasses.![id], c.id)}"/>
+                    <label th:for="'class_' + ${c.id}" th:text="${c.name}" class="form-check-label"></label>
+                </div>
+                <div th:if="${classes == null || classes.isEmpty()}">暂无可选班级</div>
+            </div>
+
+            <div class="form-group">
+                <label>选择题目 (总分将自动计算):</label><br/>
+                <select multiple="multiple" name="questionIds" id="questionIds" class="form-control" style="height: 200px;">
+                    <option th:each="q : ${allQuestions}" 
+                            th:value="${q.id}" 
+                            th:text="${q.title + ' (分值: ' + (q.score != null ? q.score : 0) + ')'}"
+                            th:attr="data-score=${q.score != null ? q.score : 0}"
+                            th:selected="${exam.questions != null && #lists.contains(exam.questions.![id], q.id)}">题目</option>
+                </select>
+                <small>按住 Ctrl (或 Cmd on Mac) 选择多个题目。</small>
+            </div>
+
+            <button type="submit" class="btn btn-success">保存考试</button>
+            <a th:href="@{/exams}" class="btn btn-secondary">取消</a>
+        </form>
+    </div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+document.addEventListener('DOMContentLoaded', function() {
+    const questionSelect = document.getElementById('questionIds');
+    const totalScoreDisplayInput = document.getElementById('totalScoreDisplay'); // Display only
+
+    function calculateAndUpdateDisplayScore() {
+        let currentTotalScore = 0;
+        if (questionSelect) {
+            const selectedOptions = Array.from(questionSelect.selectedOptions);
+            selectedOptions.forEach(option => {
+                const score = parseInt(option.getAttribute('data-score'), 10);
+                if (!isNaN(score)) {
+                    currentTotalScore += score;
+                }
+            });
+        }
+        if (totalScoreDisplayInput) {
+            totalScoreDisplayInput.value = currentTotalScore;
+        }
+    }
+
+    if (questionSelect) {
+        questionSelect.addEventListener('change', calculateAndUpdateDisplayScore);
+        // Calculate initial score based on selected questions when editing an exam
+        calculateAndUpdateDisplayScore(); 
+    }
+    
+    // Handle datetime-local for examDate
+    // Thymeleaf might not directly bind to java.util.Date with datetime-local in all scenarios smoothly.
+    // We are using exam.examDateStr (String) in the controller to handle this.
+    // If exam.examDate is a Date object, ensure it's formatted correctly for datetime-local value attribute if not using a String DTO field.
+    const examDateField = document.getElementById('examDate');
+    if (examDateField && examDateField.value) {
+        // If it's pre-filled by th:field from a String like yyyy-MM-ddTHH:mm, it should be fine.
+        // If it was a Date object and formatting was off, manual adjustment might be needed here.
+    }
+});
+/*]]>*/
+</script>
+
+</body>
+</html> 

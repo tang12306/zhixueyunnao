@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>成绩管理 - 教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+        .header { background: #4CAF50; color: #fff; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; }
+        .main-content { max-width: 1200px; margin: 2rem auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 2rem; }
+        .toolbar { display: flex; justify-content: space-between; margin-bottom: 1rem; }
+        .add-btn { background: #4CAF50; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+        select { padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 1rem; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f9fa; }
+        .action-btn { padding: 0.25rem 0.5rem; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.5rem; }
+        .delete-btn { background: #f44336; color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>成绩管理</h1>
+        <a th:href="@{/}" style="color: white; text-decoration: none;">返回首页</a>
+    </div>
+    <div class="main-content">
+        <div class="toolbar">
+            <form th:action="@{/scores}" method="get" style="display: flex; gap: 1rem;">
+                <select name="examId">
+                    <option value="">全部考试</option>
+                    <option th:each="exam : ${exams}" th:value="${exam.id}" th:text="${exam.name}" th:selected="${exam.id == selectedExamId}"></option>
+                </select>
+                <button type="submit" class="add-btn">筛选</button>
+            </form>
+            <button class="add-btn" onclick="location.href='/scores/new'">录入成绩</button>
+            <a th:href="@{'/scores/export'(examId=${selectedExamId})}" class="add-btn" style="text-decoration: none; text-align: center;">导出成绩</a>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>考试名称</th>
+                    <th>学号</th>
+                    <th>姓名</th>
+                    <th>分数</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="score : ${scores}">
+                    <td th:text="${score.id}">1</td>
+                    <td th:text="${score.exam.name}">期中考试</td>
+                    <td th:text="${score.studentNumber}">990000010</td>
+                    <td th:text="${score.studentName}">示例学生010</td>
+                    <td th:text="${score.score}">95</td>
+                    <td>
+                        <button class="action-btn delete-btn" th:onclick="'deleteScore(' + ${score.id} + ')'">删除</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="margin-top:2rem; color:#333; font-size:1.1rem;" th:if="${scores != null && !#lists.isEmpty(scores)}">
+            <b>统计信息：</b>
+            平均分：<span th:text="${avgScore}">0</span>，
+            最高分：<span th:text="${maxScore}">0</span>，
+            最低分：<span th:text="${minScore}">0</span>，
+            及格率：<span th:text="${passRate}">0</span>%
+        </div>
+    </div>
+    <script>
+        function deleteScore(id) {
+            if (confirm('确定要删除该成绩吗？')) {
+                fetch('/scores/' + id, { method: 'DELETE' }).then(response => {
+                    if (response.ok) { location.reload(); }
+                    else { alert('删除失败，请重试'); }
+                });
+            }
+        }
+    </script>
+</body>
+</html> 

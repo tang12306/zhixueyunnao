@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="${classEntity.id == null ? '添加新班级' : '编辑班级'}">班级表单</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${classEntity.id == null ? '添加新班级' : '编辑班级'}">班级表单</h1>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/organization/classes/save}" th:object="${classEntity}" method="post">
+            <input type="hidden" th:field="*{id}"/>
+            
+            <div class="form-group">
+                <label for="major">所属专业:</label>
+                <select id="major" name="majorId" class="form-control" required>
+                    <option value="">-- 选择专业 --</option>
+                    <option th:each="m : ${majors}" 
+                            th:value="${m.id}" 
+                            th:text="${m.name + ' (' + m.college?.name + ')'}"
+                            th:selected="${classEntity.major != null && classEntity.major.id == m.id}">Major Name</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="name">班级名称:</label>
+                <input type="text" id="name" th:field="*{name}" class="form-control" required/>
+            </div>
+
+            <div class="form-group">
+                <label for="grade">年级:</label>
+                <input type="number" id="grade" th:field="*{grade}" class="form-control"/>
+            </div>
+            
+            <div class="form-group">
+                <label for="studentCount">学生人数:</label>
+                <input type="number" id="studentCount" th:field="*{studentCount}" class="form-control"/>
+            </div>
+            
+            <button type="submit" class="btn btn-success">保存</button>
+            <a th:href="@{/organization/classes(majorId=${classEntity.major?.id})}" class="btn btn-secondary">取消</a>
+        </form>
+    </div>
+</body>
+</html> 

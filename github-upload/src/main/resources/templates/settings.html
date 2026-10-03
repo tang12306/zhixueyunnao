@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security6">
+<head>
+    <title>系统设置 - 江苏师范大学教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+        .header { background: #4CAF50; color: #fff; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; }
+        .user-info { display: flex; align-items: center; gap: 1rem; }
+        .logout-btn { background-color: transparent; border: 1px solid white; color: white; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; }
+        .logout-btn:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .main-content { max-width: 800px; margin: 2rem auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 2rem; }
+        .setting-group { margin-bottom: 2rem; }
+        .setting-title { color: #4CAF50; font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem; }
+        .setting-desc { color: #666; margin-bottom: 1rem; }
+        .setting-item { margin-bottom: 1rem; }
+        label { font-weight: bold; }
+        input[type="text"], input[type="password"] { padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; width: 300px; }
+        button { background: #4CAF50; color: #fff; border: none; padding: 0.5rem 1.5rem; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #43A047; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+        .btn-danger { background: #f44336; }
+        .btn-warning { background: #ff9800; }
+        .btn-info { background: #2196F3; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 10% auto; padding: 1.5rem; border-radius: 8px; width: 80%; max-width: 500px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .modal-title { margin: 0; color: #4CAF50; }
+        .close { color: #aaa; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+        .close:hover { color: #333; }
+        .form-group { margin-bottom: 1rem; }
+        .form-row { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center; }
+        .add-user-btn { margin-top: 1rem; display: block; width: 100%; padding: 0.75rem; }
+        .edit-form { display: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>系统设置</h1>
+        <div class="user-info">
+            <span sec:authorize="isAuthenticated()" sec:authentication="name">用户名</span>
+            <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="margin: 0;">
+                <button type="submit" class="logout-btn">退出登录</button>
+            </form>
+            <a th:href="@{/}" style="color: white; text-decoration: none; margin-left: 10px;">返回首页</a>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="setting-group">
+            <div class="setting-title">系统信息</div>
+            <div class="setting-desc">江苏师范大学教务题库系统<br>版本：1.0<br>开发者：<span th:text="${developers}"></span></div>
+        </div>
+        <div class="setting-group">
+            <div class="setting-title">账户安全</div>
+            <div class="setting-item">
+                <label>修改密码：</label>
+                <input type="password" id="currentPassword" placeholder="当前密码">
+                <input type="password" id="newPassword" placeholder="新密码">
+                <button onclick="changePassword()">保存</button>
+            </div>
+        </div>
+        <div class="setting-group">
+            <div class="setting-title">系统参数</div>
+            <form th:action="@{/settings/save}" method="post">
+                <div class="setting-item">
+                    <label>题库导入最大条数：</label>
+                    <input type="text" name="maxImportCount" th:value="${maxImportCount}">
+                    <button type="submit">保存</button>
+                </div>
+            </form>
+        </div>
+        <div class="setting-group">
+            <div class="setting-title">用户管理</div>
+            <button onclick="openAddUserModal()" class="btn-info" style="margin-bottom: 1rem;">添加新用户</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>用户名</th>
+                        <th>角色</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="user : ${users}">
+                        <td th:text="${user.username}"></td>
+                        <td th:text="${user.role}"></td>
+                        <td>
+                            <button class="btn-sm btn-info" th:attr="data-id=${user.id}, data-username=${user.username}, data-role=${user.role}" onclick="openEditUserModal(this)">编辑</button>
+                            <button class="btn-sm btn-warning" th:attr="data-id=${user.id}" onclick="openResetPasswordModal(this)">重置密码</button>
+                            <button class="btn-sm btn-danger" th:attr="data-id=${user.id}" onclick="deleteUser(this)">删除</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 添加用户模态框 -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">添加新用户</h3>
+                <span class="close" onclick="closeAddUserModal()">&times;</span>
+            </div>
+            <form id="addUserForm" th:action="@{/settings/addUser}" method="post">
+                <div class="form-group">
+                    <label for="username">用户名：</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码：</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">角色：</label>
+                    <select id="role" name="role" required>
+                        <option value="ADMIN">管理员</option>
+                        <option value="TEACHER">教师</option>
+                    </select>
+                </div>
+                <button type="submit" class="add-user-btn">添加用户</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑用户模态框 -->
+    <div id="editUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">编辑用户</h3>
+                <span class="close" onclick="closeEditUserModal()">&times;</span>
+            </div>
+            <form id="editUserForm" th:action="@{/settings/updateUser}" method="post">
+                <input type="hidden" id="editUserId" name="userId">
+                <div class="form-group">
+                    <label for="editUsername">用户名：</label>
+                    <input type="text" id="editUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="editRole">角色：</label>
+                    <select id="editRole" name="role" required>
+                        <option value="ADMIN">管理员</option>
+                        <option value="TEACHER">教师</option>
+                    </select>
+                </div>
+                <button type="submit" class="add-user-btn">保存修改</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 重置密码模态框 -->
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">重置密码</h3>
+                <span class="close" onclick="closeResetPasswordModal()">&times;</span>
+            </div>
+            <form id="resetPasswordForm" th:action="@{/settings/resetPassword}" method="post">
+                <input type="hidden" id="resetUserId" name="userId">
+                <div class="form-group">
+                    <label for="resetNewPassword">新密码：</label>
+                    <input type="password" id="resetNewPassword" name="newPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">确认密码：</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required>
+                </div>
+                <button type="submit" class="add-user-btn">重置密码</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 添加用户模态框
+        function openAddUserModal() {
+            document.getElementById('addUserModal').style.display = 'block';
+        }
+        
+        function closeAddUserModal() {
+            document.getElementById('addUserModal').style.display = 'none';
+        }
+        
+        // 编辑用户模态框
+        function openEditUserModal(element) {
+            const userId = element.getAttribute('data-id');
+            const username = element.getAttribute('data-username');
+            const role = element.getAttribute('data-role');
+            
+            document.getElementById('editUserId').value = userId;
+            document.getElementById('editUsername').value = username;
+            document.getElementById('editRole').value = role;
+            document.getElementById('editUserModal').style.display = 'block';
+        }
+        
+        function closeEditUserModal() {
+            document.getElementById('editUserModal').style.display = 'none';
+        }
+        
+        // 重置密码模态框
+        function openResetPasswordModal(element) {
+            const userId = element.getAttribute('data-id');
+            document.getElementById('resetUserId').value = userId;
+            document.getElementById('resetPasswordModal').style.display = 'block';
+        }
+        
+        function closeResetPasswordModal() {
+            document.getElementById('resetPasswordModal').style.display = 'none';
+        }
+        
+        // 删除用户
+        function deleteUser(element) {
+            const userId = element.getAttribute('data-id');
+            if (confirm('确定要删除该用户吗？')) {
+                fetch('/settings/deleteUser/' + userId, {
+                    method: 'POST'
+                }).then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('删除失败，请重试');
+                    }
+                });
+            }
+        }
+        
+        // 修改密码
+        function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            
+            if (!currentPassword || !newPassword) {
+                alert('请输入当前密码和新密码');
+                return;
+            }
+            
+            fetch('/settings/changePassword', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    currentPassword: currentPassword,
+                    newPassword: newPassword
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alert('密码修改成功');
+                    document.getElementById('currentPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                } else {
+                    alert('密码修改失败，请检查当前密码是否正确');
+                }
+            });
+        }
+        
+        // 点击模态框外部关闭模态框
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('addUserModal')) {
+                closeAddUserModal();
+            }
+            if (event.target == document.getElementById('editUserModal')) {
+                closeEditUserModal();
+            }
+            if (event.target == document.getElementById('resetPasswordModal')) {
+                closeResetPasswordModal();
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security6">
+<head>
+    <title>学科管理 - 教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: white;
+        }
+        .logout-btn {
+            background-color: transparent;
+            border: 1px solid white;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .main-content {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        .add-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .subject-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .subject-table th,
+        .subject-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .subject-table th {
+            background-color: #f8f9fa;
+        }
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
+        .edit-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-container {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .form-title {
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>学科管理</h1>
+        <div class="user-info">
+            <span sec:authorize="isAuthenticated()" sec:authentication="name">用户名</span>
+            <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="margin: 0;">
+                <button type="submit" class="logout-btn">退出登录</button>
+            </form>
+            <a href="/" style="color: white; text-decoration: none; margin-left: 10px;">返回首页</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="form-container">
+            <h2 class="form-title">添加/编辑学科</h2>
+            <form th:action="@{/subjects}" th:object="${subject}" method="post">
+                <input type="hidden" th:field="*{id}">
+                <div class="form-group">
+                    <label for="name">学科名称</label>
+                    <input type="text" id="name" th:field="*{name}" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">学科描述</label>
+                    <input type="text" id="description" th:field="*{description}">
+                </div>
+                <button type="submit" class="add-btn">保存</button>
+                <button type="button" class="action-btn" onclick="resetForm()">重置</button>
+            </form>
+        </div>
+
+        <h2>学科列表</h2>
+        <table class="subject-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>名称</th>
+                    <th>描述</th>
+                    <th>章节数</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="subj : ${subjects}">
+                    <td th:text="${subj.id}">1</td>
+                    <td th:text="${subj.name}">数学</td>
+                    <td th:text="${subj.description}">大学数学课程</td>
+                    <td th:text="${subj.chapters != null ? subj.chapters.size() : 0}">5</td>
+                    <td>
+                        <button class="action-btn edit-btn" th:onclick="'editSubject(' + ${subj.id} + ')'">编辑</button>
+                        <button class="action-btn delete-btn" th:onclick="'deleteSubject(' + ${subj.id} + ')'">删除</button>
+                        <a th:href="@{/chapters(subjectId=${subj.id})}" class="action-btn edit-btn" style="text-decoration: none;">管理章节</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function editSubject(id) {
+            fetch('/subjects/' + id)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('id').value = data.id;
+                    document.getElementById('name').value = data.name;
+                    document.getElementById('description').value = data.description || '';
+                });
+        }
+        
+        function deleteSubject(id) {
+            if (confirm('确定要删除这个学科吗？这将同时删除该学科下的所有章节和题目！')) {
+                fetch('/subjects/' + id, {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('删除失败，请重试');
+                    }
+                });
+            }
+        }
+        
+        function resetForm() {
+            document.getElementById('id').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('description').value = '';
+        }
+    </script>
+</body>
+</html> 

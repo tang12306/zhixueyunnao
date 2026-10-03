@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>考试详情</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${exam != null ? exam.name : '考试详情'}">考试详情</h1>
+
+        <div th:if="${errorMessage}" class="alert alert-danger">
+            <p th:text="${errorMessage}"></p>
+        </div>
+
+        <div th:if="${exam == null and errorMessage == null}" class="alert alert-warning">
+            <p>未找到指定的考试信息。</p>
+        </div>
+
+        <div th:if="${exam != null}">
+            <table class="table">
+                <tr>
+                    <th>ID</th>
+                    <td th:text="${exam.id}"></td>
+                </tr>
+                <tr>
+                    <th>考试名称</th>
+                    <td th:text="${exam.name}"></td>
+                </tr>
+                <tr>
+                    <th>学科</th>
+                    <td th:text="${exam.subject?.name}"></td>
+                </tr>
+                <tr>
+                    <th>考试类型</th>
+                    <td th:text="${exam.examType}"></td>
+                </tr>
+                <tr>
+                    <th>考试日期</th>
+                    <td th:text="${#dates.format(exam.examDate, 'yyyy-MM-dd HH:mm')}"></td>
+                </tr>
+                <tr>
+                    <th>时长 (分钟)</th>
+                    <td th:text="${exam.duration}"></td>
+                </tr>
+                <tr>
+                    <th>总分</th>
+                    <td th:text="${exam.totalScore}"></td>
+                </tr>
+                <tr>
+                    <th>状态</th>
+                    <td th:text="${exam.status}"></td>
+                </tr>
+                <tr>
+                    <th>创建时间</th>
+                    <td th:text="${#dates.format(exam.createTime, 'yyyy-MM-dd HH:mm')}"></td>
+                </tr>
+                 <tr>
+                    <th>创建人</th>
+                    <td th:text="${exam.creator}"></td>
+                </tr>
+            </table>
+
+            <h3>目标班级:</h3>
+            <ul th:if="${exam.targetClasses != null && !exam.targetClasses.isEmpty()}">
+                <li th:each="class : ${exam.targetClasses}" th:text="${class.name}"></li>
+            </ul>
+            <p th:if="${exam.targetClasses == null || exam.targetClasses.isEmpty()}">未指定目标班级。</p>
+
+            <h3>考试题目:</h3>
+            <div th:if="${exam.questions != null && !exam.questions.isEmpty()}">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>题目内容</th>
+                            <th>类型</th>
+                            <th>分值</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="question : ${exam.questions}">
+                            <td th:text="${question.title}"></td> 
+                            <td th:text="${question.type}"></td>
+                            <td th:text="${question.score}"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p th:if="${exam.questions == null || exam.questions.isEmpty()}">本次考试未包含题目。</p>
+            
+            <a th:href="@{/exams/edit/{id}(id=${exam.id})}" class="btn btn-warning">编辑</a>
+            <a th:href="@{/exams}" class="btn btn-secondary">返回列表</a>
+        </div>
+        <div th:unless="${exam != null}">
+             <a th:href="@{/exams}" class="btn btn-secondary">返回列表</a>
+        </div>
+    </div>
+</body>
+</html> 

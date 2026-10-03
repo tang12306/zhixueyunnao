@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>班级均分对比</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+    <!-- Include Chart.js for drawing charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>班级均分对比</h1>
+
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/statistics/scores/class-comparison}" method="get">
+            <div class="form-group">
+                <label for="examId">选择考试:</label>
+                <select id="examId" name="examId" class="form-control" required>
+                    <option value="">-- 请选择考试 --</option>
+                    <option th:each="ex : ${exams}" 
+                            th:value="${ex.id}" 
+                            th:text="${ex.name + ' (' + ex.subject?.name + ')'}"
+                            th:selected="${selectedExam != null && selectedExam.id == ex.id}">Exam Name</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>选择要对比的班级 (可多选):</label><br/>
+                <select multiple name="classIds" id="classIdsSelect" class="form-control" required style="height: 150px;">
+                    <option th:each="cls : ${allClasses}" 
+                            th:value="${cls.id}" 
+                            th:text="${cls.name + ' (' + cls.major?.name + ')'}"
+                            th:selected="${selectedClasses != null && #lists.contains(selectedClasses.![id], cls.id)}">Class Name</option>
+                </select>
+                 <small>按住 Ctrl (或 Cmd on Mac) 选择多个班级。</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary">生成对比</button>
+            <a th:href="@{/statistics}" class="btn btn-secondary">返回统计首页</a>
+        </form>
+
+        <hr th:if="${comparisonDataReady}"/>
+
+        <div th:if="${comparisonDataReady}">
+            <h3 th:text="'考试: ' + ${selectedExam.name} + ' - 班级均分对比'">对比结果</h3>
+            
+            <!-- Placeholder for Chart -->
+            <div style="width: 80%; margin: auto;">
+                <canvas id="classComparisonChart"></canvas>
+            </div>
+
+            <!-- Placeholder for Table Data -->
+            <h4>详细数据:</h4>
+            <table class="table table-bordered" th:if="${classAverageScores != null}">
+                <thead>
+                    <tr>
+                        <th>班级名称</th>
+                        <th>平均分</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="entry : ${classAverageScores}">
+                        <td th:text="${entry.key}"></td>
+                        <td th:text="${#numbers.formatDecimal(entry.value, 1, 2)}"></td>
+                    </tr>
+                     <tr th:if="${#maps.isEmpty(classAverageScores)}">
+                        <td colspan="2" style="text-align: center;">没有找到选定班级的成绩数据。</td>
+                    </tr>
+                </tbody>
+            </table>
+             <p th:if="${classAverageScores == null}">均分数据正在加载或无法获取...</p>
+        </div>
+
+    </div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+document.addEventListener('DOMContentLoaded', function() {
+    var comparisonDataReady = /*[[${comparisonDataReady}]]*/ false;
+    if (comparisonDataReady) {
+        var ctx = document.getElementById('classComparisonChart').getContext('2d');
+        
+        // This data needs to be populated from the model by the controller
+        // var classNames = ['Class A', 'Class B', 'Class C']; // Example data
+        // var averageScores = [75.5, 82.1, 69.0]; // Example data
+        
+        var classAverageScoresMap = /*[[${classAverageScores}]]*/ null; 
+        var classNames = [];
+        var averageScores = [];
+
+        if(classAverageScoresMap){
+            for (const [className, avgScore] of Object.entries(classAverageScoresMap)) {
+                classNames.push(className);
+                averageScores.push(avgScore);
+            }
+        }
+
+        if (classNames.length > 0) {
+            var classComparisonChart = new Chart(ctx, {
+                type: 'bar', // or 'line', 'pie', etc.
+                data: {
+                    labels: classNames, //班级名称
+                    datasets: [{
+                        label: '班级平均分',
+                        data: averageScores, //对应的平均分
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.2)',
+                            'rgba(54, 162, 235, 0.2)',
+                            'rgba(255, 206, 86, 0.2)',
+                            'rgba(75, 192, 192, 0.2)',
+                            'rgba(153, 102, 255, 0.2)',
+                            'rgba(255, 159, 64, 0.2)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            suggestedMax: 100 // Assuming scores are out of 100
+                        }
+                    },
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: '班级平均分对比图'
+                        }
+                    }
+                }
+            });
+        } else {
+             console.log("No data available for class comparison chart or data format error.");
+        }
+    }
+});
+/*]]>*/
+</script>
+
+</body>
+</html> 

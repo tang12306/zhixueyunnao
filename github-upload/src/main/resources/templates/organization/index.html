@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>组织管理</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>组织管理</h1>
+        <p>请选择要管理的组织层级：</p>
+        
+        <div class="menu-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <a th:href="@{/organization/schools}" class="menu-item">
+                <h2>学校管理</h2>
+                <p>管理学校信息</p>
+            </a>
+            <a th:href="@{/organization/colleges}" class="menu-item">
+                <h2>学院管理</h2>
+                <p>管理学院信息</p>
+            </a>
+            <a th:href="@{/organization/majors}" class="menu-item">
+                <h2>专业管理</h2>
+                <p>管理专业信息和关联学科</p>
+            </a>
+            <a th:href="@{/organization/classes}" class="menu-item">
+                <h2>班级管理</h2>
+                <p>管理班级信息</p>
+            </a>
+        </div>
+        <br/>
+        <a th:href="@{/}" class="btn btn-secondary">返回首页</a>
+    </div>
+</body>
+</html> 

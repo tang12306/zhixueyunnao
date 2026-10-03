@@ -1,0 +1,38 @@
+{
+  "name": "education-question-bank-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "serve": "node ./node_modules/@vue/cli-service/bin/vue-cli-service.js serve --port 8083",
+    "build": "node ./node_modules/@vue/cli-service/bin/vue-cli-service.js build",
+    "lint": "node ./node_modules/@vue/cli-service/bin/vue-cli-service.js lint"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@iconify/vue": "^5.0.0",
+    "@vueuse/motion": "^3.0.3",
+    "animate.css": "^4.1.1",
+    "aos": "^2.3.4",
+    "axios": "^1.6.2",
+    "core-js": "^3.34.0",
+    "echarts": "^5.6.0",
+    "element-plus": "^2.4.3",
+    "file-saver": "^2.0.5",
+    "nprogress": "^0.2.0",
+    "pinia": "^2.1.7",
+    "vue": "^3.3.11",
+    "vue-loading-overlay": "^6.0.6",
+    "vue-router": "^4.2.5",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "~5.0.8",
+    "@vue/cli-plugin-eslint": "~5.0.8",
+    "@vue/cli-plugin-router": "~5.0.8",
+    "@vue/cli-service": "~5.0.8",
+    "eslint": "^8.55.0",
+    "eslint-plugin-vue": "^9.19.2",
+    "sass": "^1.69.5",
+    "sass-loader": "^13.3.2"
+  }
+}

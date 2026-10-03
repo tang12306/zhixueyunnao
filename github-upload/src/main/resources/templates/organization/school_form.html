@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="${school.id == null ? '添加新学校' : '编辑学校'}">学校表单</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${school.id == null ? '添加新学校' : '编辑学校'}">学校表单</h1>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/organization/schools/save}" th:object="${school}" method="post">
+            <input type="hidden" th:field="*{id}"/>
+            
+            <div class="form-group">
+                <label for="name">学校名称:</label>
+                <input type="text" id="name" th:field="*{name}" class="form-control" required/>
+            </div>
+            
+            <div class="form-group">
+                <label for="address">地址:</label>
+                <input type="text" id="address" th:field="*{address}" class="form-control"/>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">描述:</label>
+                <textarea id="description" th:field="*{description}" class="form-control"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-success">保存</button>
+            <a th:href="@{/organization/schools}" class="btn btn-secondary">取消</a>
+        </form>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security6">
+<head>
+    <title>教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logout-btn {
+            background-color: transparent;
+            border: 1px solid white;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .main-content {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .menu-item {
+            background-color: white;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        .menu-item:hover {
+            transform: translateY(-5px);
+        }
+        .menu-item h2 {
+            margin: 0 0 1rem 0;
+            color: #4CAF50;
+        }
+        .menu-item p {
+            margin: 0;
+            color: #666;
+        }
+        .welcome-section {
+            text-align: center;
+            padding: 3rem 0;
+            background-color: #fff;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .welcome-title {
+            font-size: 2.5rem;
+            color: #4CAF50;
+            margin-bottom: 1rem;
+        }
+        .welcome-subtitle {
+            font-size: 1.2rem;
+            color: #666;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>教务题库系统</h1>
+        <div class="user-info">
+            <span sec:authorize="isAuthenticated()" sec:authentication="name">用户名</span>
+            <span sec:authorize="!isAuthenticated()">未登录</span>
+            <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="margin: 0;">
+                <button type="submit" class="logout-btn">退出登录</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="welcome-section">
+        <h1 class="welcome-title">欢迎使用教务题库系统</h1>
+        <p class="welcome-subtitle">本系统提供学科管理、章节管理、题型分类和自动出题功能，帮助教师高效管理题库和组织考试。</p>
+    </div>
+    
+    <div class="main-content">
+        <div class="menu-grid">
+            <a th:href="@{/subjects}" class="menu-item">
+                <h2>学科管理</h2>
+                <p>创建和删除学科，管理学科信息</p>
+            </a>
+            <a th:href="@{/chapters}" class="menu-item">
+                <h2>章节管理</h2>
+                <p>在学科下创建和管理章节</p>
+            </a>
+            <a th:href="@{/questions}" class="menu-item">
+                <h2>题库管理</h2>
+                <p>按选择、填空、判断、简答四种题型分类管理题目</p>
+            </a>
+            <a th:href="@{/exam-generator}" class="menu-item">
+                <h2>自动出题</h2>
+                <p>支持章节测试、期中测试、期末测试三种模式</p>
+            </a>
+            <!-- 
+            <a th:href="@{/ai/question-generator}" class="menu-item">
+                <h2>AI 出题</h2>
+                <p>使用 AI 智能生成题目，支持多种题型和难度</p>
+            </a>
+            -->
+            <!-- 
+            <a th:href="@{/excel}" class="menu-item">
+                <h2>Excel 工具</h2>
+                <p>生成和导出各科目题库的Excel文件</p>
+            </a>
+            -->
+            <a th:href="@{/exams}" class="menu-item">
+                <h2>考试管理</h2>
+                <p>管理已创建的考试，查看考试详情，出卷后自动保存于此</p>
+            </a>
+            <a th:href="@{/organization}" class="menu-item">
+                <h2>组织管理</h2>
+                <p>管理学校、学院、专业、班级和学科关联</p>
+            </a>
+            <a th:href="@{/statistics}" class="menu-item">
+                <h2>统计与成绩分析</h2>
+                <p>导入成绩，对比班级均分、查看成绩分布、学生成绩趋势及其他统计</p>
+            </a>
+            <a th:href="@{/login}" class="menu-item" sec:authorize="!isAuthenticated()">
+                <h2>学生/用户登录</h2>
+                <p>进入登录页面</p>
+            </a>
+            <a th:href="@{/student/exams(studentId=${currentUser.id})}" class="menu-item" sec:authorize="hasRole('STUDENT')">
+                 <h2>我的考试 (学生)</h2>
+                 <p>查看并参加分配给您的考试</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html> 

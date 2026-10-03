@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>学校管理</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>学校管理</h1>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <p><a th:href="@{/organization/schools/form}" class="btn btn-primary">添加新学校</a></p>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>学校名称</th>
+                    <th>地址</th>
+                    <th>描述</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="school : ${schools}">
+                    <td th:text="${school.id}"></td>
+                    <td th:text="${school.name}"></td>
+                    <td th:text="${school.address}"></td>
+                    <td th:text="${school.description}"></td>
+                    <td>
+                        <a th:href="@{/organization/schools/form(id=${school.id})}" class="btn btn-sm btn-warning">编辑</a>
+                        <form th:action="@{/organization/schools/delete/{id}(id=${school.id})}" method="post" style="display:inline;" onsubmit="return confirm('确定删除该学校吗？其下所有学院、专业、班级等都将被删除！');">
+                            <input type="hidden" name="_method" value="delete" />
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                        <a th:href="@{/organization/colleges(schoolId=${school.id})}" class="btn btn-sm btn-info">查看学院</a>
+                    </td>
+                </tr>
+                <tr th:if="${schools == null || schools.isEmpty()}">
+                    <td colspan="5" style="text-align: center;">暂无学校信息</td>
+                </tr>
+            </tbody>
+        </table>
+        <a th:href="@{/}" class="btn btn-secondary">返回首页</a>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题目Excel生成</title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <style>
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .btn-generate {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2 class="text-center mb-4">题目Excel生成工具</h2>
+        
+        <div class="row">
+            <!-- C++题目生成卡片 -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">C++程序设计题库</div>
+                    <div class="card-body">
+                        <p>包含以下章节的题目：</p>
+                        <ul>
+                            <li>第一章：C++基础</li>
+                            <li>第二章：面向对象编程</li>
+                            <li>第三章：STL标准模板库</li>
+                        </ul>
+                        <p>题型包括：单选题、判断题、填空题、简答题</p>
+                        <a href="/excel/generate/cpp" class="btn btn-primary btn-generate">生成C++题目Excel</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 可以在这里添加其他科目的生成卡片 -->
+            
+        </div>
+        
+        <div class="mt-4">
+            <h4>使用说明：</h4>
+            <ol>
+                <li>点击相应科目的"生成Excel"按钮</li>
+                <li>系统将自动生成包含该科目题目的Excel文件</li>
+                <li>浏览器会自动下载生成的Excel文件</li>
+                <li>您可以将生成的Excel文件导入到系统中的题库管理模块</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

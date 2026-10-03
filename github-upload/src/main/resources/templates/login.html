@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>江苏师范大学教务题库系统 - 登录</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(to bottom, #f5f5f5, #e8f5e9);
+        }
+        .login-container {
+            max-width: 420px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 2.5rem 2.5rem 2rem 2.5rem;
+            position: relative;
+            z-index: 2;
+            backdrop-filter: blur(10px);
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            color: #2E7D32;
+            margin-bottom: 2rem;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .user-type-group {
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .user-type-group label {
+            display: inline-block;
+            margin-right: 15px;
+            font-weight: normal;
+            color: #555;
+            cursor: pointer;
+        }
+        .user-type-group input[type="radio"] {
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.6rem;
+            font-weight: 500;
+            color: #333;
+            font-size: 0.95rem;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+            outline: none;
+        }
+        button[type="submit"] {
+            width: 100%;
+            background: #4CAF50;
+            color: #fff;
+            border: none;
+            padding: 0.9rem;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        button[type="submit"]:hover {
+            background: #43A047;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+        }
+        .error-message {
+            color: #d32f2f;
+            text-align: center;
+            margin-bottom: 1.2rem;
+            padding: 0.8rem;
+            background: rgba(211, 47, 47, 0.1);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .school-title {
+            text-align: center;
+            font-size: 2rem;
+            color: #2E7D32;
+            margin-bottom: 2rem;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        @media (max-width: 768px) {
+            .login-container {
+                margin: 0 1rem;
+                padding: 2rem 1.5rem 1.5rem 1.5rem;
+            }
+            .school-title {
+                font-size: 1.5rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="school-title">江苏师范大学教务题库系统</div>
+    <div class="login-container">
+        <h2>用户登录</h2>
+        <form th:action="@{/login}" method="post">
+            <div th:if="${param.error}" class="error-message">用户名或密码错误，请重试</div>
+            <div class="form-group user-type-group">
+                <label for="userTypeTeacher">
+                    <input type="radio" id="userTypeTeacher" name="userType" value="teacher" checked="checked"> 教师
+                </label>
+                <label for="userTypeStudent">
+                    <input type="radio" id="userTypeStudent" name="userType" value="student"> 学生
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" th:value="${param.username}" required autofocus placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" required placeholder="请输入密码">
+            </div>
+            <button type="submit">登 录</button>
+        </form>
+    </div>
+</body>
+</html> 

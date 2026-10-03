@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>班级成绩分布</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>班级成绩分布</h1>
+
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/statistics/scores/class-distribution}" method="get">
+            <div class="form-group">
+                <label for="examId">选择考试:</label>
+                <select id="examId" name="examId" class="form-control" required>
+                    <option value="">-- 请选择考试 --</option>
+                    <option th:each="ex : ${exams}" 
+                            th:value="${ex.id}" 
+                            th:text="${ex.name + ' (' + ex.subject?.name + ')'}"
+                            th:selected="${selectedExam != null && selectedExam.id == ex.id}">Exam Name</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="classId">选择班级:</label>
+                <select id="classId" name="classId" class="form-control" required>
+                    <option value="">-- 请选择班级 --</option>
+                    <option th:each="cls : ${allClasses}" 
+                            th:value="${cls.id}" 
+                            th:text="${cls.name + ' (' + cls.major?.name + ')'}"
+                            th:selected="${selectedClass != null && selectedClass.id == cls.id}">Class Name</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">生成分布图</button>
+            <a th:href="@{/statistics}" class="btn btn-secondary">返回统计首页</a>
+        </form>
+
+        <hr th:if="${distributionDataReady}"/>
+
+        <div th:if="${distributionDataReady}">
+            <h3 th:text="${selectedExam.name} + ' - ' + ${selectedClass.name} + ' - 成绩分布'">成绩分布结果</h3>
+            
+            <div style="width: 70%; margin: auto;">
+                <canvas id="scoreDistributionChart"></canvas>
+            </div>
+
+            <h4>详细数据:</h4>
+            <table class="table table-bordered" th:if="${scoreDistribution != null}">
+                <thead>
+                    <tr>
+                        <th>分数段</th>
+                        <th>人数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="entry : ${scoreDistribution}">
+                        <td th:text="${entry.key}"></td>
+                        <td th:text="${entry.value}"></td>
+                    </tr>
+                    <tr th:if="${#maps.isEmpty(scoreDistribution)}">
+                        <td colspan="2" style="text-align: center;">没有找到该班级的成绩分布数据。</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p th:if="${scoreDistribution == null}">成绩分布数据正在加载或无法获取...</p>
+        </div>
+
+    </div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+document.addEventListener('DOMContentLoaded', function() {
+    var distributionDataReady = /*[[${distributionDataReady}]]*/ false;
+    if (distributionDataReady) {
+        var ctx = document.getElementById('scoreDistributionChart').getContext('2d');
+        
+        var scoreDistributionMap = /*[[${scoreDistribution}]]*/ null; 
+        var labels = []; // e.g., ['90-100', '80-89', ...]
+        var dataCounts = []; // e.g., [10, 15, ...]
+
+        if(scoreDistributionMap){
+            // It's good to sort the labels if they represent ranges for better chart readability
+            // Assuming keys are like "90-100", "80-89" etc. We can define a preferred order.
+            const preferredOrder = ['优秀(90-100)', '良好(80-89)', '中等(70-79)', '及格(60-69)', '不及格(<60)']; // Example order
+            let tempMap = new Map();
+            for (const [key, value] of Object.entries(scoreDistributionMap)) {
+                tempMap.set(key, value);
+            }
+
+            preferredOrder.forEach(key => {
+                if (tempMap.has(key)) {
+                    labels.push(key);
+                    dataCounts.push(tempMap.get(key));
+                }
+            });
+            // Add any other keys not in preferredOrder, though ideally scoreService returns them in a consistent order or format
+            tempMap.forEach((value, key) => {
+                if (!labels.includes(key)){
+                    labels.push(key);
+                    dataCounts.push(value);
+                }
+            });
+        }
+
+        if (labels.length > 0) {
+            var scoreDistributionChart = new Chart(ctx, {
+                type: 'pie', // or 'doughnut', 'bar'
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '学生人数',
+                        data: dataCounts,
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.7)', // Teal
+                            'rgba(54, 162, 235, 0.7)', // Blue
+                            'rgba(255, 206, 86, 0.7)', // Yellow
+                            'rgba(255, 159, 64, 0.7)', // Orange
+                            'rgba(255, 99, 132, 0.7)',  // Red
+                            'rgba(153, 102, 255, 0.7)' // Purple
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: '班级成绩分布图'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + '人';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            console.log("No data available for score distribution chart or data format error.");
+        }
+    }
+});
+/*]]>*/
+</script>
+
+</body>
+</html> 

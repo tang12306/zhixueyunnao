@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>错误 - 教务题库系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .error-container {
+            max-width: 800px;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .error-title {
+            color: #f44336;
+            margin-bottom: 1rem;
+        }
+        .error-message {
+            margin-bottom: 2rem;
+            color: #555;
+        }
+        .error-details {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            text-align: left;
+            font-family: monospace;
+            color: #666;
+        }
+        .back-btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1 class="error-title">发生错误</h1>
+        <div class="error-message">
+            <p>抱歉，处理您的请求时出现了问题。</p>
+            <p th:if="${error}" th:text="${error}">未知错误</p>
+        </div>
+        
+        <a href="/" class="back-btn">返回首页</a>
+        <a href="javascript:history.back()" class="back-btn" style="background-color: #2196F3;">返回上一页</a>
+        
+        <div class="error-details" th:if="${path}">
+            <p>请求路径: <span th:text="${path}">未知路径</span></p>
+            <p>时间: <span th:text="${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')}">2023-01-01 00:00:00</span></p>
+        </div>
+    </div>
+</body>
+</html> 

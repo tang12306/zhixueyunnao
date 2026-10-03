@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout_admin}">
+<head>
+    <title th:text="'管理班级: ' + ${classEntity.name} + ' - 学生列表'"></title>
+    <style>
+        .table th, .table td {
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="container-fluid mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 th:text="'班级: ' + ${classEntity.name} + ' - 学生管理'">班级学生管理</h2>
+            <div>
+                 <a th:href="@{/organization/classes(majorId=${classEntity.major?.id})}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> 返回班级列表
+                </a>
+                 <a th:href="@{/organization/majors(collegeId=${classEntity.major?.college?.id})}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> 返回专业列表
+                </a>
+            </div>
+        </div>
+
+        <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
+        <div th:if="${successMessage}" class="alert alert-success" role="alert" th:text="${successMessage}"></div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0" th:text="'班级: ' + ${classEntity.name} + ' (所属专业: ' + ${classEntity.major?.name} + ')'">班级详情</h5>
+            </div>
+            <div class="card-body">
+                <a th:href="@{'/organization/classes/' + ${classEntity.id} + '/students/add'}" class="btn btn-primary mb-3">
+                    <i class="fas fa-plus"></i> 添加新学生
+                </a>
+
+                <div th:if="${students == null or students.isEmpty()}">
+                    <p class="text-muted">该班级下暂无学生信息。</p>
+                </div>
+
+                <div th:unless="${students == null or students.isEmpty()}" class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>学号 (用户名)</th>
+                                <th>姓名</th>
+                                <th>角色</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="student : ${students}">
+                                <td th:text="${student.id}"></td>
+                                <td th:text="${student.username}"></td>
+                                <td th:text="${student.name}"></td>
+                                <td th:text="${student.role}"></td>
+                                <td>
+                                    <a th:href="@{'/organization/classes/' + ${classEntity.id} + '/students/' + ${student.id} + '/edit'}" class="btn btn-sm btn-outline-primary me-1" title="编辑">
+                                        <i class="fas fa-edit"></i> 编辑
+                                    </a>
+                                    <!-- 考虑添加删除学生的功能，但需要确认逻辑和权限 -->
+                                    <!-- 
+                                    <form th:action="@{'/organization/classes/' + ${classEntity.id} + '/students/' + ${student.id} + '/delete'}" method="post" style="display: inline;" onsubmit="return confirm('确定要删除该学生吗？');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="删除">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </button>
+                                    </form>
+                                     -->
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 卡片：未分配班级的学生 -->
+        <div class="card shadow-sm mt-4" th:if="${allUnassignedStudents != null and not allUnassignedStudents.isEmpty()}">
+            <div class="card-header">
+                <h5 class="mb-0">未分配班级的学生</h5>
+            </div>
+            <div class="card-body">
+                <p>以下是尚未分配到任何班级的学生。您可以将他们分配到当前班级：<strong th:text="${classEntity.name}"></strong>。</p>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>学号 (用户名)</th>
+                                <th>姓名</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="unassignedStudent : ${allUnassignedStudents}">
+                                <td th:text="${unassignedStudent.username}"></td>
+                                <td th:text="${unassignedStudent.name}"></td>
+                                <td>
+                                    <form th:action="@{/organization/classes/{classId}/students/assign/{studentId}(classId=${classEntity.id}, studentId=${unassignedStudent.id})}" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            <i class="fas fa-user-plus"></i> 分配到此班级
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- /卡片：未分配班级的学生 -->
+
+    </div>
+</div>
+</body>
+</html> 
