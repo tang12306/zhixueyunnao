@@ -28,10 +28,12 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 import { ArrowDown } from '@element-plus/icons-vue'; // 确保已安装 @element-plus/icons-vue
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 // 计算面包屑导航项
 const breadcrumbItems = computed(() => {
@@ -39,11 +41,10 @@ const breadcrumbItems = computed(() => {
   return route.matched.filter(item => item.meta && item.meta.title);
 });
 
-const handleCommand = (command) => {
+const handleCommand = async (command) => {
   if (command === 'logout') {
-    // 执行退出登录逻辑，清除token，跳转到登录页
-    localStorage.removeItem('token');
-    console.log('User logout');
+    // 通知后端注销会话，再回到登录页
+    await authStore.logout();
     router.push('/login');
   } else if (command === 'profile') {
     // 跳转到个人中心页面

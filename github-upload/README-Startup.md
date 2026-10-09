@@ -1,134 +1,105 @@
-# 🚀 Education Question Bank System - Startup Guide
+# Education Question Bank System - Startup Guide
 
 ## Quick Start
 
-### 1. Configure Local Credentials
+### 1. Configure `.env`
 
-The repository does not contain real student identities or private database/API credentials. Before starting services, set `DB_PASSWORD` to your local MySQL root password in the same terminal that launches the startup script. Set `DB_USERNAME` if you use a different database user, and `DEEPSEEK_API_KEY` if you need AI features. The alternate YAML configuration also requires a separately generated `JWT_SECRET`. Docker Compose can load a local `.env`, but Spring Boot does not load that file automatically. Existing database volumes retain their original credentials.
+Copy `.env.example` to `.env` in this folder and fill in at least `DB_PASSWORD`. Both Docker Compose and Spring Boot read this file (Spring Boot must be started from this folder, which `start-simple.bat` does). `.env` is ignored by Git.
 
-All `demo.teacher` and `990000001`–`990000058` accounts are fictional, local-only examples. This change does not migrate existing database users or remove old Git history. Rotate any previously exposed passwords or API keys.
+| Variable | Purpose |
+| --- | --- |
+| `DB_PASSWORD` | Required. MySQL root password for the container and the backend |
+| `DEEPSEEK_API_KEY` | Needed for AI question/exam generation |
+| `APP_ADMIN_USERNAME` / `APP_ADMIN_PASSWORD` | Creates the first administrator when the database has none (password: 8+ characters) |
+| `SPRING_PROFILES_ACTIVE` | `dev` for local development (creates demo accounts); leave empty in production |
+
+Existing database volumes keep their original root password. This change does not migrate existing database users or remove old Git history. Rotate any previously exposed passwords or API keys.
 
 ### 2. Start the System
-Double-click: `一键启动项目.bat`
+Double-click: `start-simple.bat`
 
 ### 3. Stop the System
-Double-click: `stop-services.bat`
+Double-click: `stop.bat`
 
 ## What the Startup Script Does
 
-1. **Starts Database Containers** (MongoDB + MySQL)
-2. **Installs Dependencies** (if not already installed)
-3. **Starts Node.js Backend** (port 5000)
-4. **Starts Vue.js Frontend** (port 8083)
-5. **Starts Spring Boot Backend** (port 8080, optional)
-6. **Creates Default Admin User**
-7. **Opens Browser** automatically
+1. **Checks** Java and Docker, and creates `.env` from `.env.example` if it is missing (then exits so you can fill it in)
+2. **Closes** service windows left over from a previous run
+3. **Starts MySQL** with `docker compose up -d`
+4. **Starts the Spring Boot backend** (port 8080) using `mvnw.cmd` or a system `mvn`
+5. **Starts the Vue.js frontend** (port 8083)
+6. **Opens the browser**
 
 ## Access Information
 
 ### Web Interface
-- **Frontend**: http://localhost:8083
-- **Default Login**: admin / admin123
+- **Frontend**: http://localhost:8083 (proxies `/api` and `/questions` to the backend)
+- **Backend / legacy pages**: http://localhost:8080
 
-### API Endpoints
-- **Node.js API**: http://localhost:5000
-- **Spring Boot API**: http://localhost:8080
+### Accounts
+- **Production / default**: no built-in accounts. The first administrator comes from `APP_ADMIN_USERNAME` / `APP_ADMIN_PASSWORD`.
+- **`dev` profile**: fictional, local-only demo accounts `demo.admin`, `demo.teacher` and students `990000001`–`990000058`. See `docs/系统账号密码说明.md`.
+- The student portal is not open yet: student accounts are rejected by the frontend login.
 
 ### Database
-- **MongoDB**: localhost:27017
-- **MySQL**: localhost:3306
+- **MySQL**: 127.0.0.1:3306 (only reachable from this machine)
 
 ## Prerequisites
 
-### Required
 - ✅ **Docker Desktop** - Must be installed and running
-- ✅ **Node.js** - Version 16 or higher
-- ✅ **npm** - Comes with Node.js
-
-### Optional
-- ⚠️ **Maven** - For Spring Boot backend
+- ✅ **Java 17+** - For the Spring Boot backend
+- ✅ **Node.js 18+** and **npm** - For the Vue frontend
+- Maven is optional; the bundled Maven Wrapper downloads it on first use
 
 ## Troubleshooting
 
-### Common Issues
-
 #### 1. Docker Error
 ```
-ERROR: Failed to start database containers
+ERROR: Failed to start MySQL
 ```
-**Solution**: Make sure Docker Desktop is running
+**Solution**: Make sure Docker Desktop is running and `DB_PASSWORD` is set in `.env`
 
 #### 2. Port Already in Use
-**Solution**: Run `stop-services.bat` first
+**Solution**: Run `stop.bat` first
 
-#### 3. Dependencies Installation Failed
-**Solution**: 
-- Check internet connection
-- Clear npm cache: `npm cache clean --force`
-- Delete node_modules folders and retry
+#### 3. Backend fails with "Access denied for user"
+**Solution**: The MySQL volume was created with a different password. Put the original password in `DB_PASSWORD`, or reset the data with `docker compose down -v` (this deletes all data).
 
-#### 4. Services Not Starting
-**Solution**:
-- Check the service windows for error messages
-- Make sure all prerequisites are installed
-- Restart Docker Desktop
+#### 4. Frontend shows "请先登录" on every page
+**Solution**: Make sure the backend is running on port 8080, or set `VUE_APP_BACKEND_URL` in `frontend/.env.local`
 
 ### Manual Commands
 
-If the script fails, you can run commands manually:
-
 ```bash
 # Start database
-docker-compose up -d
+docker compose up -d
 
-# Start backend
-cd backend
-npm install
-npm start
+# Start backend (from this folder)
+mvnw.cmd spring-boot:run
 
-# Start frontend  
+# Start frontend
 cd frontend
 npm install
 npm run serve
 
-# Stop everything
-docker-compose down
+# Stop database
+docker compose down
 ```
 
 ## File Structure
 
 ```
-教务题库系统/
-├── 一键启动项目.bat          # Main startup script
-├── stop-services.bat         # Stop all services
-├── docker-compose.yml        # Database configuration
-├── backend/                  # Node.js backend
+github-upload/
+├── start-simple.bat          # Startup script
+├── stop.bat                  # Stop all services
+├── .env.example              # Environment template
+├── docker-compose.yml        # MySQL
 ├── frontend/                 # Vue.js frontend
 └── src/                      # Spring Boot source
 ```
 
-## Success Indicators
-
-When everything is working correctly:
-- ✅ 3 command windows open (database, backend, frontend)
-- ✅ Browser opens to http://localhost:8083
-- ✅ Can login with admin/admin123
-- ✅ All services respond properly
-
 ## Data Persistence
 
-- Database data is stored in Docker volumes
+- Database data is stored in a Docker volume
 - Data persists even when containers are stopped
-- To completely reset: `docker-compose down -v`
-
-## Support
-
-If you encounter issues:
-1. Check the service windows for error messages
-2. Ensure all prerequisites are installed
-3. Try running `stop-services.bat` then restart
-4. Check Docker Desktop is running properly
-
----
-
-**Remember**: The startup script is now in English to avoid character encoding issues! 🚀
+- To completely reset: `docker compose down -v`

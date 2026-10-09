@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, RouterView } from 'vue-router'
 import { h } from 'vue'
 import NProgress from 'nprogress'
+import { useAuthStore, safeRedirect } from '../stores/auth'
 
 // 导入组件 - 先只导入基本组件进行测试
 import Layout from '../views/Layout.vue';
@@ -161,7 +162,7 @@ const routes = [
         path: 'settings',
         name: 'Settings',
         component: Settings,
-        meta: { title: '系统设置', icon: 'setting' }
+        meta: { title: '系统设置', icon: 'setting', requiresAdmin: true }
       },
       {
         path: '/organization',
@@ -246,20 +247,29 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to) => {
   // 开始进度条
   NProgress.start()
 
   // 设置标题
   document.title = to.meta.title ? `${to.meta.title} - 江苏师范大学智慧教学云脑系统` : '江苏师范大学智慧教学云脑系统'
 
-  // 检查是否已登录
-  const isAuthenticated = localStorage.getItem('token')
-  if (to.path !== '/login' && !isAuthenticated) {
-    next('/login')
-  } else {
-    next()
+  // 登录状态以后端会话为准，首次进入时向后端确认一次
+  const auth = useAuthStore()
+  if (!auth.loaded) {
+    await auth.fetchMe()
   }
+
+  if (to.path === '/login') {
+    return auth.isLoggedIn ? safeRedirect(to.query.redirect) : true
+  }
+  if (!auth.isLoggedIn) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return '/'
+  }
+  return true
 })
 
 // 添加全局错误处理

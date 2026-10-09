@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.util.Date; // Import Date for birthday
 import java.util.Objects;
 import lombok.Data; // Add Lombok import
+import lombok.ToString;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Data // Add @Data annotation
@@ -18,13 +19,16 @@ public class User {
     @Column(unique = true, nullable = false)
     private String username; // 学号将作为用户名
 
+    // 只接收、不输出：直接把 User 序列化成 JSON 的接口不会再带出密码哈希
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @ToString.Exclude
     @Column(nullable = false)
     private String password; // 存储加密后的密码
 
     private String name;     // 姓名
 
     @Column(nullable = false)
-    private String role;     // 角色 (例如 "STUDENT", "TEACHER")
+    private String role;     // 角色，取值见 com._1.core.common.Roles
 
     @Column(nullable = false)
     private Boolean enabled = true;  // 用户是否启用，默认为true

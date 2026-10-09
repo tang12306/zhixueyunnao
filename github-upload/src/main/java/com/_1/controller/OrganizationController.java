@@ -1,5 +1,6 @@
 package com._1.controller;
 
+import com._1.core.exception.ApiException;
 import com._1.entity.ClassEntity;
 import com._1.entity.College;
 import com._1.entity.Major;
@@ -12,7 +13,6 @@ import com._1.service.MajorService;
 import com._1.service.SchoolService;
 import com._1.service.SubjectService;
 import com._1.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -30,12 +30,26 @@ public class OrganizationController {
 
     private static final Logger logger = LoggerFactory.getLogger(OrganizationController.class);
 
-    @Autowired private SchoolService schoolService;
-    @Autowired private CollegeService collegeService;
-    @Autowired private MajorService majorService;
-    @Autowired private ClassService classService;
-    @Autowired private SubjectService subjectService;
-    @Autowired private UserService userService;
+    private final SchoolService schoolService;
+    private final CollegeService collegeService;
+    private final MajorService majorService;
+    private final ClassService classService;
+    private final SubjectService subjectService;
+    private final UserService userService;
+
+    public OrganizationController(SchoolService schoolService,
+                                  CollegeService collegeService,
+                                  MajorService majorService,
+                                  ClassService classService,
+                                  SubjectService subjectService,
+                                  UserService userService) {
+        this.schoolService = schoolService;
+        this.collegeService = collegeService;
+        this.majorService = majorService;
+        this.classService = classService;
+        this.subjectService = subjectService;
+        this.userService = userService;
+    }
 
     @GetMapping
     public String organizationIndex() {
@@ -49,7 +63,7 @@ public class OrganizationController {
             model.addAttribute("schools", schoolService.findAll());
         } catch (Exception e) {
             logger.error("Error listing schools", e);
-            model.addAttribute("errorMessage", "加载学校列表失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载学校列表失败");
         }
         return "organization/school_list"; // View for listing schools
     }
@@ -61,7 +75,7 @@ public class OrganizationController {
             model.addAttribute("school", school);
         } catch (Exception e) {
             logger.error("Error loading school form for id: {}", id, e);
-            model.addAttribute("errorMessage", "加载学校表单失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载学校表单失败");
             model.addAttribute("school", new School()); // Provide an empty object for the form
         }
         return "organization/school_form"; // View for school form (create/edit)
@@ -74,7 +88,7 @@ public class OrganizationController {
             return "redirect:/organization/schools";
         } catch (Exception e) {
             logger.error("Error saving school: {}", school, e);
-            model.addAttribute("errorMessage", "保存学校失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "保存学校失败");
             model.addAttribute("school", school); // Keep data in form
             return "organization/school_form";
         }
@@ -87,7 +101,7 @@ public class OrganizationController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             logger.error("Error deleting school with id: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除学校失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除学校失败");
         }
     }
 
@@ -107,7 +121,7 @@ public class OrganizationController {
             model.addAttribute("schools", schoolService.findAll()); // For dropdown filter
         } catch (Exception e) {
             logger.error("Error listing colleges for schoolId: {}", schoolId, e);
-            model.addAttribute("errorMessage", "加载学院列表失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载学院列表失败");
         }
         return "organization/college_list";
     }
@@ -123,7 +137,7 @@ public class OrganizationController {
             model.addAttribute("schools", schoolService.findAll());
         } catch (Exception e) {
             logger.error("Error loading college form for id: {} or schoolId: {}", id, schoolId, e);
-            model.addAttribute("errorMessage", "加载学院表单失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载学院表单失败");
             model.addAttribute("college", new College());
             model.addAttribute("schools", schoolService.findAll());
         }
@@ -140,7 +154,7 @@ public class OrganizationController {
             return "redirect:/organization/colleges?schoolId=" + schoolId;
         } catch (Exception e) {
             logger.error("Error saving college: {}", college, e);
-            model.addAttribute("errorMessage", "保存学院失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "保存学院失败");
             model.addAttribute("college", college);
             model.addAttribute("schools", schoolService.findAll());
             return "organization/college_form";
@@ -154,7 +168,7 @@ public class OrganizationController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             logger.error("Error deleting college with id: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除学院失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除学院失败");
         }
     }
 
@@ -174,7 +188,7 @@ public class OrganizationController {
             model.addAttribute("colleges", collegeService.findAll()); // For dropdown filter
         } catch (Exception e) {
             logger.error("Error listing majors for collegeId: {}", collegeId, e);
-            model.addAttribute("errorMessage", "加载专业列表失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载专业列表失败");
         }
         return "organization/major_list";
     }
@@ -191,7 +205,7 @@ public class OrganizationController {
             model.addAttribute("allSubjects", subjectService.findAll());
         } catch (Exception e) {
             logger.error("Error loading major form for id: {} or collegeId: {}", id, collegeId, e);
-            model.addAttribute("errorMessage", "加载专业表单失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载专业表单失败");
             model.addAttribute("major", new Major());
             model.addAttribute("colleges", collegeService.findAll());
             model.addAttribute("allSubjects", subjectService.findAll());
@@ -218,7 +232,7 @@ public class OrganizationController {
             return "redirect:/organization/majors?collegeId=" + collegeId;
         } catch (Exception e) {
             logger.error("Error saving major: {}", major, e);
-            model.addAttribute("errorMessage", "保存专业失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "保存专业失败");
             model.addAttribute("major", major);
             model.addAttribute("colleges", collegeService.findAll());
             model.addAttribute("allSubjects", subjectService.findAll());
@@ -233,7 +247,7 @@ public class OrganizationController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             logger.error("Error deleting major with id: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除专业失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除专业失败");
         }
     }
 
@@ -253,7 +267,7 @@ public class OrganizationController {
             model.addAttribute("majors", majorService.findAll()); // For dropdown filter
         } catch (Exception e) {
             logger.error("Error listing classes for majorId: {}", majorId, e);
-            model.addAttribute("errorMessage", "加载班级列表失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载班级列表失败");
         }
         return "organization/class_list";
     }
@@ -269,7 +283,7 @@ public class OrganizationController {
             model.addAttribute("majors", majorService.findAll());
         } catch (Exception e) {
             logger.error("Error loading class form for id: {} or majorId: {}", id, majorId, e);
-            model.addAttribute("errorMessage", "加载班级表单失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载班级表单失败");
             model.addAttribute("classEntity", new ClassEntity());
             model.addAttribute("majors", majorService.findAll());
         }
@@ -286,7 +300,7 @@ public class OrganizationController {
             return "redirect:/organization/classes?majorId=" + majorId;
         } catch (Exception e) {
             logger.error("Error saving class: {}", classEntity, e);
-            model.addAttribute("errorMessage", "保存班级失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "保存班级失败");
             model.addAttribute("classEntity", classEntity);
             model.addAttribute("majors", majorService.findAll());
             return "organization/class_form";
@@ -300,7 +314,7 @@ public class OrganizationController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             logger.error("Error deleting class with id: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除班级失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除班级失败");
         }
     }
 
@@ -319,7 +333,7 @@ public class OrganizationController {
             model.addAttribute("allUnassignedStudents", userService.findUsersByRoleAndClassEntityIsNull("STUDENT"));
         } catch (Exception e) {
             logger.error("Error listing students for classId: {}", classId, e);
-            model.addAttribute("errorMessage", "加载班级内学生列表失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载班级内学生列表失败");
             model.addAttribute("classEntity", classService.findById(classId).orElse(new ClassEntity()));
             model.addAttribute("students", List.of());
             model.addAttribute("allUnassignedStudents", List.of()); 
@@ -341,7 +355,7 @@ public class OrganizationController {
             model.addAttribute("formTitle", "向班级 [" + clazz.getName() + "] 添加新学生");
         } catch (Exception e) {
             logger.error("Error preparing add student form for classId: {}", classId, e);
-            model.addAttribute("errorMessage", "准备添加学生表单失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "准备添加学生表单失败");
             return "redirect:/organization/classes/" + classId + "/students";
         }
         return "organization/student_form"; // 新的或复用的学生表单视图
@@ -363,7 +377,7 @@ public class OrganizationController {
             model.addAttribute("formTitle", "修改班级 [" + clazz.getName() + "] 内学生 [" + student.getName() + "] 信息");
         } catch (Exception e) {
             logger.error("Error preparing edit student form for studentId: {} in classId: {}", studentId, classId, e);
-            model.addAttribute("errorMessage", "准备编辑学生表单失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "准备编辑学生表单失败");
             return "redirect:/organization/classes/" + classId + "/students";
         }
         return "organization/student_form";
@@ -398,7 +412,7 @@ public class OrganizationController {
             return "organization/student_form";
         } catch (Exception e) {
             logger.error("Error saving student in classId {}: {}", classId, student, e);
-            model.addAttribute("errorMessage", "保存学生时发生意外错误: " + e.getMessage());
+            model.addAttribute("errorMessage", "保存学生时发生意外错误");
             model.addAttribute("student", student);
              try {
                  ClassEntity clazz = classService.findById(classId).orElse(null);
@@ -437,48 +451,25 @@ public class OrganizationController {
     // ==== API Endpoints for dynamic loading ====
     @GetMapping("/api/schools/{schoolId}/colleges")
     @ResponseBody
-    public ResponseEntity<?> getCollegesBySchool(@PathVariable Long schoolId) {
-        try {
-            School school = schoolService.findById(schoolId)
-                .orElseThrow(() -> new IllegalArgumentException("无效学校ID: " + schoolId));
-            return ResponseEntity.ok(collegeService.findBySchool(school));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Error fetching colleges for schoolId: {}", schoolId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取学院列表失败");
-        }
+    public List<College> getCollegesBySchool(@PathVariable Long schoolId) {
+        School school = schoolService.findById(schoolId)
+            .orElseThrow(() -> ApiException.notFound("学校不存在"));
+        return collegeService.findBySchool(school);
     }
 
-    // Utility to get majors for a college
     @GetMapping("/api/colleges/{collegeId}/majors")
     @ResponseBody
-    public ResponseEntity<?> getMajorsByCollege(@PathVariable Long collegeId) {
-        try {
-            College college = collegeService.findById(collegeId)
-                .orElseThrow(() -> new IllegalArgumentException("无效学院ID: " + collegeId));
-            return ResponseEntity.ok(majorService.findByCollege(college));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Error fetching majors for collegeId: {}", collegeId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取专业列表失败");
-        }
+    public List<Major> getMajorsByCollege(@PathVariable Long collegeId) {
+        College college = collegeService.findById(collegeId)
+            .orElseThrow(() -> ApiException.notFound("学院不存在"));
+        return majorService.findByCollege(college);
     }
 
-    // Utility to get classes for a major
     @GetMapping("/api/majors/{majorId}/classes")
     @ResponseBody
-    public ResponseEntity<?> getClassesByMajor(@PathVariable Long majorId) {
-        try {
-            Major major = majorService.findById(majorId)
-                .orElseThrow(() -> new IllegalArgumentException("无效专业ID: " + majorId));
-            return ResponseEntity.ok(classService.findByMajor(major));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Error fetching classes for majorId: {}", majorId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取班级列表失败");
-        }
+    public List<ClassEntity> getClassesByMajor(@PathVariable Long majorId) {
+        Major major = majorService.findById(majorId)
+            .orElseThrow(() -> ApiException.notFound("专业不存在"));
+        return classService.findByMajor(major);
     }
 } 

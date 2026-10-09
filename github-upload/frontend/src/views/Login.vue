@@ -60,16 +60,6 @@
             @keyup.enter="handleLogin"
           />
         </el-form-item>
-        <!-- 用户类型选择 - 学生选项已注释 -->
-        <el-form-item prop="userType">
-          <el-radio-group v-model="loginForm.userType" class="user-type-group">
-            <el-radio value="teacher" class="user-type-radio">
-              <Icon icon="mdi:account-tie" class="radio-icon" />
-              教师
-            </el-radio>
-            <!-- <el-radio label="student">学生</el-radio> -->
-          </el-radio-group>
-        </el-form-item>
         <el-form-item>
           <el-button
             type="primary"
@@ -91,20 +81,20 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import { useAuthStore, safeRedirect } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
 const loginForm = reactive({
   username: '',
-  password: '',
-  userType: 'teacher' // 默认为教师登录
+  password: ''
 })
 const loginRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-  userType: [{ required: true, message: '请选择用户类型', trigger: 'change' }]
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 const loginFormRef = ref(null)
 const loading = ref(false)
@@ -118,52 +108,14 @@ const handleLogin = () => {
       if (valid) {
         loading.value = true
         try {
-          // 调用Node.js API登录接口
-          const response = await axios.post('http://localhost:5000/api/auth/login',
-            {
-              username: loginForm.username,
-              password: loginForm.password,
-              userType: loginForm.userType
-            },
-            {
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              withCredentials: true // 重要：确保Cookie被发送和保存
-            }
-          );
-          
-          console.log('登录响应:', response);
-
-          // 检查登录是否成功
-          if (response.data && response.data.success) {
-            // 登录成功后设置token，这是前端路由守卫验证的关键
-            localStorage.setItem('token', 'logged-in');
-
-            // 登录成功
-            ElMessage.success(response.data.message || '登录成功');
-
-            // 根据服务器返回的重定向URL进行跳转
-            const redirectUrl = response.data.redirectUrl;
-            if (redirectUrl) {
-              router.push(redirectUrl);
-            } else {
-              // 备用跳转逻辑 - 只支持教师登录
-              // if (loginForm.userType === 'student') {
-              //   router.push('/student/exams');
-              // } else {
-                router.push('/');
-              // }
-            }
-          } else {
-            // 登录失败
-            ElMessage.error(response.data?.message || '登录失败');
-          }
+          // 登录成功后后端写入会话 Cookie；学生账号会被拒绝（学生端暂未开放）
+          await authStore.login(loginForm.username, loginForm.password)
+          ElMessage.success('登录成功')
+          router.push(safeRedirect(route.query.redirect))
         } catch (error) {
-          console.error('登录失败:', error);
-          ElMessage.error(error.response?.data?.message || '登录失败，请检查用户名和密码');
+          ElMessage.error(error.response?.data?.message || '登录失败，请稍后重试')
         } finally {
-          loading.value = false;
+          loading.value = false
         }
       }
     })

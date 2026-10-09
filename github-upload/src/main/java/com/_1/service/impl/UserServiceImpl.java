@@ -8,8 +8,6 @@ import com._1.repository.UserRepository;
 import com._1.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,14 +27,13 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder; // 使用 @Lazy 解决循环依赖
-    private final ClassEntityRepository classEntityRepository; // 修改为 ClassEntityRepository
+    private final PasswordEncoder passwordEncoder;
+    private final ClassEntityRepository classEntityRepository;
 
-    @Autowired
-    public UserServiceImpl(UserRepository userRepository, @Lazy PasswordEncoder passwordEncoder, ClassEntityRepository classEntityRepository) {
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, ClassEntityRepository classEntityRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.classEntityRepository = classEntityRepository; // 初始化
+        this.classEntityRepository = classEntityRepository;
     }
 
     @Override
@@ -59,8 +56,10 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
         GrantedAuthority authority = new SimpleGrantedAuthority(role);
 
+        boolean enabled = !Boolean.FALSE.equals(user.getEnabled());
         return new org.springframework.security.core.userdetails.User(user.getUsername(),
                 user.getPassword(), // 数据库中存储的应该是已加密的密码
+                enabled, true, true, true,
                 Collections.singletonList(authority));
     }
 
@@ -133,12 +132,30 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         return userRepository.findById(id);
     }
 
+    /**
+     * 原样保存，不处理密码。设置新密码一律走 encodePassword / resetPassword / changePassword，
+     * 不再靠 "$2a$" 前缀猜测密码是否已加密（那样调用方可以直接写入一个现成的哈希）。
+     */
     @Override
     public User save(User user) {
-        if (!user.getPassword().startsWith("$2a$")) {
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-        }
         return userRepository.save(user);
+    }
+
+    @Override
+    public String encodePassword(String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> findByRole(String role) {
+        return userRepository.findByRole(role);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countByRole(String role) {
+        return userRepository.countByRole(role);
     }
 
     @Override
@@ -201,12 +218,8 @@ public class UserServiceImpl implements UserService, UserDetailsService {
                     userToSave = existingUserByUsername;
                     userToSave.setName(studentFormData.getName()); 
                     if (studentFormData.getPassword() != null && !studentFormData.getPassword().isEmpty()) {
-                        if (!studentFormData.getPassword().startsWith("$2a$")) {
-                            userToSave.setPassword(passwordEncoder.encode(studentFormData.getPassword()));
-                        } else {
-                            userToSave.setPassword(studentFormData.getPassword()); 
-                        }
-                    } 
+                        userToSave.setPassword(passwordEncoder.encode(studentFormData.getPassword()));
+                    }
                 } else {
                     throw new IllegalArgumentException("学号 " + studentFormData.getUsername() + " 已被占用或不适用。请检查是否已在其他班级或角色不符。");
                 }
@@ -237,9 +250,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
                 userToSave.setUsername(studentFormData.getUsername());
             }
             if (studentFormData.getPassword() != null && !studentFormData.getPassword().isEmpty()) {
-                if (!studentFormData.getPassword().startsWith("$2a$")) { 
-                    userToSave.setPassword(passwordEncoder.encode(studentFormData.getPassword()));
-                }
+                userToSave.setPassword(passwordEncoder.encode(studentFormData.getPassword()));
             }
         }
 
@@ -275,9 +286,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         
         // 密码更新逻辑 (可选，如果表单提供密码字段)
         if (studentDetails.getPassword() != null && !studentDetails.getPassword().isEmpty()) {
-            if(!studentDetails.getPassword().startsWith("$2a$")) { // 避免重复加密
-                 existingStudent.setPassword(passwordEncoder.encode(studentDetails.getPassword()));
-            }
+            existingStudent.setPassword(passwordEncoder.encode(studentDetails.getPassword()));
         }
 
         existingStudent.setStudentClass(clazz); // 确保班级关联正确

@@ -5,7 +5,6 @@ import com._1.service.ExamService;
 import com._1.service.ScoreService;
 import com._1.service.UserService;
 import com._1.entity.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,16 +31,23 @@ import com._1.service.SubjectService;
 public class StatisticsController {
     private static final Logger logger = LoggerFactory.getLogger(StatisticsController.class);
 
-    @Autowired
-    private ExamService examService;
-    @Autowired
-    private ScoreService scoreService;
-    @Autowired
-    private ClassService classService;
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private SubjectService subjectService;
+    private final ExamService examService;
+    private final ScoreService scoreService;
+    private final ClassService classService;
+    private final UserService userService;
+    private final SubjectService subjectService;
+
+    public StatisticsController(ExamService examService,
+                                ScoreService scoreService,
+                                ClassService classService,
+                                UserService userService,
+                                SubjectService subjectService) {
+        this.examService = examService;
+        this.scoreService = scoreService;
+        this.classService = classService;
+        this.userService = userService;
+        this.subjectService = subjectService;
+    }
 
     @GetMapping
     public String statistics(Model model) {
@@ -74,7 +80,7 @@ public class StatisticsController {
             model.addAttribute("classes", classService.findAll());
         } catch (Exception e) {
             logger.error("Error loading import scores form", e);
-            model.addAttribute("errorMessage", "加载导入表单失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载导入表单失败");
         }
         return "statistics/score_import_form";
     }
@@ -114,7 +120,7 @@ public class StatisticsController {
             model.addAttribute("errorMessage", "导入失败: " + e.getMessage());
         } catch (Exception e) {
             logger.error("Error importing scores", e);
-            model.addAttribute("errorMessage", "导入失败，发生内部错误: " + e.getMessage());
+            model.addAttribute("errorMessage", "导入失败，发生内部错误");
         }
         model.addAttribute("exams", examService.findAll());
         model.addAttribute("classes", classService.findAll());
@@ -170,7 +176,7 @@ public class StatisticsController {
             model.addAttribute("comparisonDataReady", false);
         } catch (Exception e) {
             logger.error("Error loading class comparison page", e);
-            model.addAttribute("errorMessage", "加载班级均分对比页面失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载班级均分对比页面失败");
             model.addAttribute("comparisonDataReady", false);
         }
         return "statistics/class_comparison";
@@ -209,7 +215,7 @@ public class StatisticsController {
             model.addAttribute("distributionDataReady", false);
         } catch (Exception e) {
             logger.error("Error loading score distribution page", e);
-            model.addAttribute("errorMessage", "加载班级成绩分布页面失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载班级成绩分布页面失败");
             model.addAttribute("distributionDataReady", false);
         }
         return "statistics/class_distribution";
@@ -252,7 +258,7 @@ public class StatisticsController {
             model.addAttribute("analysisDataReady", false);
         } catch (Exception e) {
             logger.error("Error loading student analysis page", e);
-            model.addAttribute("errorMessage", "加载学生个人分析页面失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载学生个人分析页面失败");
             model.addAttribute("analysisDataReady", false);
         }
         return "statistics/student_analysis";

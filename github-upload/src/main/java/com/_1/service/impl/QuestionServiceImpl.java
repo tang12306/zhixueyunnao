@@ -7,7 +7,6 @@ import com._1.entity.Subject;
 import com._1.repository.ChapterRepository;
 import com._1.repository.QuestionRepository;
 import com._1.service.QuestionService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -15,7 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -24,11 +26,13 @@ import java.util.stream.Collectors;
 @Service
 public class QuestionServiceImpl implements QuestionService {
 
-    @Autowired
-    private QuestionRepository questionRepository;
-    
-    @Autowired
-    private ChapterRepository chapterRepository;
+    private final QuestionRepository questionRepository;
+    private final ChapterRepository chapterRepository;
+
+    public QuestionServiceImpl(QuestionRepository questionRepository, ChapterRepository chapterRepository) {
+        this.questionRepository = questionRepository;
+        this.chapterRepository = chapterRepository;
+    }
 
     @Override
     public List<Question> findAll() {
@@ -155,11 +159,17 @@ public class QuestionServiceImpl implements QuestionService {
         return questionRepository.findAll((Specification<Question>) (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // Filter by Subject ID (via Chapter -> Subject)
+            // 按学科筛选：有章节的看章节所属学科；没有章节的题目（例如 AI 按多个章节出题后保存的）只记了学科名称
             if (subjectId != null) {
-                Join<Question, Chapter> chapterJoin = root.join("chapter"); // Join Question to Chapter
-                Join<Chapter, Subject> subjectJoin = chapterJoin.join("subject"); // Join Chapter to Subject
-                predicates.add(criteriaBuilder.equal(subjectJoin.get("id"), subjectId));
+                Join<Question, Chapter> chapterJoin = root.join("chapter", JoinType.LEFT);
+                Subquery<String> subjectName = query.subquery(String.class);
+                Root<Subject> subjectRoot = subjectName.from(Subject.class);
+                subjectName.select(subjectRoot.get("name")).where(criteriaBuilder.equal(subjectRoot.get("id"), subjectId));
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.equal(chapterJoin.get("subject").get("id"), subjectId),
+                        criteriaBuilder.and(
+                                criteriaBuilder.isNull(chapterJoin.get("id")),
+                                criteriaBuilder.equal(root.get("subject"), subjectName))));
             }
 
             // Filter by Chapter ID

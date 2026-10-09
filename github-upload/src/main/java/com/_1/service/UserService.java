@@ -9,7 +9,11 @@ public interface UserService {
     List<User> findAll();
     Optional<User> findById(Long id);
     Optional<User> findByUsername(String username);
+    /** 原样保存，不加密密码；新密码先用 encodePassword 加密 */
     User save(User user);
+    String encodePassword(String rawPassword);
+    List<User> findByRole(String role);
+    long countByRole(String role);
     void deleteById(Long id);
     void resetPassword(Long id, String newPassword);
     boolean changePassword(String username, String currentPassword, String newPassword);

@@ -3,7 +3,6 @@ package com._1.service.impl;
 import com._1.entity.Subject;
 import com._1.repository.SubjectRepository;
 import com._1.service.SubjectService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
@@ -11,8 +10,11 @@ import java.util.ArrayList;
 
 @Service
 public class SubjectServiceImpl implements SubjectService {
-    @Autowired
-    private SubjectRepository subjectRepository;
+    private final SubjectRepository subjectRepository;
+
+    public SubjectServiceImpl(SubjectRepository subjectRepository) {
+        this.subjectRepository = subjectRepository;
+    }
 
     @Override
     public List<Subject> findAll() {

@@ -2,7 +2,6 @@ package com._1.controller;
 
 import com._1.entity.User; 
 import com._1.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,7 +16,6 @@ public class HomeController {
 
     private final UserService userService;
 
-    @Autowired
     public HomeController(UserService userService) {
         this.userService = userService;
     }

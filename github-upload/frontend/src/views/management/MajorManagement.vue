@@ -9,7 +9,7 @@
       </template>
 
       <!-- 筛选 -->
-      <el-form :inline="true" :model="listQuery" class="demo-form-inline" @submit.native.prevent>
+      <el-form :inline="true" :model="listQuery" class="demo-form-inline" @submit.prevent>
         <el-form-item label="选择学院">
           <el-select v-model="selectedCollegeId" placeholder="请选择学院" clearable @change="handleCollegeChange">
             <el-option
@@ -262,7 +262,7 @@ function updateData() {
   });
 }
 
-function handleDelete(row, index) {
+function handleDelete(row) {
   ElMessageBox.confirm(`确认删除专业 "${row.name}" 吗？此操作不可恢复。`, '警告', {
     confirmButtonText: '确认删除',
     cancelButtonText: '取消',

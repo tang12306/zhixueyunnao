@@ -18,13 +18,7 @@
         </el-form-item>
         <el-form-item label="题型">
           <el-select v-model="filters.type" placeholder="选择题型" clearable>
-            <el-option label="单选题" value="单选题"></el-option>
-            <el-option label="多选题" value="多选题"></el-option>
-            <el-option label="判断题" value="判断题"></el-option>
-            <el-option label="填空题" value="填空题"></el-option>
-            <el-option label="简答题" value="简答题"></el-option>
-            <el-option label="作文题" value="作文题"></el-option>
-            <el-option label="阅读理解" value="阅读理解"></el-option>
+            <el-option v-for="t in QUESTION_TYPES" :key="t.value" :label="t.label" :value="t.value"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="难度">
@@ -56,7 +50,9 @@
         :flexible="true"
       >
         <el-table-column prop="subject" label="科目" width="80"></el-table-column>
-        <el-table-column prop="type" label="题型" width="100"></el-table-column>
+        <el-table-column label="题型" width="100">
+          <template #default="scope">{{ questionTypeLabel(scope.row.type) }}</template>
+        </el-table-column>
         <el-table-column label="难度" width="80">
           <template #default="scope">
             <el-rate 
@@ -110,7 +106,7 @@
       <div class="question-detail" v-if="currentQuestion">
         <div class="detail-header">
           <div class="detail-subject">{{ currentQuestion.subject }}</div>
-          <div class="detail-type">{{ currentQuestion.type }}</div>
+          <div class="detail-type">{{ questionTypeLabel(currentQuestion.type) }}</div>
           <div class="detail-difficulty">
             难度: 
             <el-rate 
@@ -171,6 +167,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '../../api';
 import { processQuestionOptions } from '@/utils/errorHandler';
+import { QUESTION_TYPES, questionTypeLabel } from '@/utils/questionTypes';
 
 const router = useRouter();
 const questions = ref([]);
@@ -220,7 +217,7 @@ const loadQuestions = async () => {
     const javaParams = {
       page: pagination.page - 1, // Java API page从0开始
       size: pagination.limit,
-      type: filters.type, // 暂时直接传递中文类型，看后端处理情况
+      type: filters.type,
       difficulty: filters.difficulty ? parseInt(filters.difficulty) : null,
       keyword: filters.search,
       subjectId: filters.subjectId

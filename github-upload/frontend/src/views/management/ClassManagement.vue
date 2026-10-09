@@ -9,7 +9,7 @@
       </template>
 
       <!-- 筛选 -->
-      <el-form :inline="true" :model="listQuery" class="demo-form-inline" @submit.native.prevent>
+      <el-form :inline="true" :model="listQuery" class="demo-form-inline" @submit.prevent>
         <el-form-item label="选择学院">
           <el-select v-model="selectedCollegeId" placeholder="请选择学院" clearable @change="handleCollegeChange">
             <el-option v-for="c in colleges" :key="c.id" :label="c.name" :value="c.id" />
@@ -279,7 +279,7 @@ async function handleDelete(row) {
     console.log('检查结果:', checkResult);
 
     // 由于Java API响应拦截器直接返回response.data，所以checkResult就是我们需要的数据
-    const { canDelete, studentCount, message } = checkResult;
+    const { canDelete, message } = checkResult;
 
     if (!canDelete) {
       // 如果不能删除，显示详细信息和操作建议

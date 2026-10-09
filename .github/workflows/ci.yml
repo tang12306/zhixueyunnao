@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: github-upload
+
+jobs:
+  backend:
+    name: 后端测试 (Spring Boot)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: github-upload/pom.xml
+      # 测试使用 H2 内存库（application-test.properties），不需要 MySQL
+      - run: mvn -B verify
+
+  frontend:
+    name: 前端构建 (Vue)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: github-upload/frontend/package-lock.json
+      - run: npm ci
+        working-directory: github-upload/frontend
+      - run: npm run build
+        working-directory: github-upload/frontend
+
+  public-data:
+    name: 公开数据检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/check-public-data.cjs

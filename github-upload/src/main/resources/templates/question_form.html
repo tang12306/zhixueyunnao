@@ -73,6 +73,7 @@
             margin-top: 0.5rem;
         }
     </style>
+    <script th:src="@{/js/csrf.js}"></script>
 </head>
 <body>
     <div class="header">
@@ -105,15 +106,12 @@
             <div class="form-group">
                 <label for="type">题目类型</label>
                 <select id="type" th:field="*{type}" required>
-                    <option value="CHOICE">选择题</option>
-                    <option value="FILL_BLANK">填空题</option>
-                    <option value="TRUE_FALSE">判断题</option>
-                    <option value="SHORT_ANSWER">简答题</option>
+                    <option th:each="t : ${questionTypes}" th:value="${t.name()}" th:text="${t.label}"></option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label for="options">选项（每行一个选项）</label>
+                <label for="options">选项（每行一个，依次对应 A、B、C…，不用写字母）</label>
                 <textarea id="options" name="optionsString" th:text="${optionsString}"></textarea>
             </div>
 
@@ -248,17 +246,17 @@
     </script>
 
     <!-- 在页面底部添加JavaScript代码 -->
-    <script th:inline="javascript">
+    <script>
         document.getElementById('generateQuestionBtn').addEventListener('click', async function() {
-            const subject = document.getElementById('subjectId').value;
-            const chapter = document.getElementById('chapterId').value;
+            const subjectId = document.getElementById('subjectId').value;
+            const chapterId = document.getElementById('chapterId').value;
             const type = document.getElementById('type').value;
-            
-            if (!subject || !chapter || !type) {
-                alert('请先选择科目、章节和题目类型');
+
+            if (!subjectId || !type) {
+                alert('请先选择科目和题目类型');
                 return;
             }
-            
+
             // 显示加载状态
             const btn = this;
             const btnText = document.getElementById('generateBtnText');
@@ -266,63 +264,42 @@
             btn.disabled = true;
             btnText.style.display = 'none';
             btnLoading.style.display = 'inline';
-            
+
             try {
-                console.log('开始发送请求...');
-                const requestBody = new URLSearchParams({
-                    subject: document.getElementById('subjectId').options[document.getElementById('subjectId').selectedIndex].text,
-                    chapter: document.getElementById('chapterId').options[document.getElementById('chapterId').selectedIndex].text,
-                    type: document.getElementById('type').options[document.getElementById('type').selectedIndex].text
+                const params = new URLSearchParams({
+                    subjectId: subjectId,
+                    type: type,
+                    difficulty: document.getElementById('difficulty').value
                 });
-                console.log('请求参数:', requestBody.toString());
-                
+                if (chapterId) {
+                    params.append('chapterId', chapterId);
+                }
+
                 const response = await fetch('/api/generate-question', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: requestBody
+                    body: params
                 });
-                
-                console.log('收到响应:', response.status, response.statusText);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('服务器返回错误:', errorText);
-                    throw new Error(errorText || '生成题目失败');
+
+                // 成功时返回题目 JSON；失败时返回 {success: false, message}
+                const result = await response.json().catch(() => null);
+                if (!response.ok || !result) {
+                    throw new Error((result && result.message) || '生成题目失败（HTTP ' + response.status + '）');
                 }
-                
-                const result = await response.text();
-                console.log('API返回结果:', result);
-                
-                // 解析返回的文本，填充到表单中
-                const lines = result.split('\n');
-                let content = '';
-                let answer = '';
-                let analysis = '';
-                let options = '';
-                
-                for (let line of lines) {
-                    if (line.startsWith('题目：')) {
-                        content = line.substring(3).trim();
-                    } else if (line.startsWith('选项：')) {
-                        options = line.substring(3).trim();
-                    } else if (line.startsWith('答案：')) {
-                        answer = line.substring(3).trim();
-                    } else if (line.startsWith('解析：')) {
-                        analysis = line.substring(3).trim();
-                    }
+
+                // 选项不带字母前缀，每行一个
+                document.getElementById('content').value = result.content || '';
+                document.getElementById('answer').value = result.answer || '';
+                document.getElementById('analysis').value = result.analysis || '';
+                document.getElementById('options').value = (result.options || []).join('\n');
+                const title = document.getElementById('title');
+                if (!title.value) {
+                    title.value = (result.content || '').split('\n')[0].slice(0, 50);
                 }
-                
-                document.getElementById('content').value = content;
-                document.getElementById('answer').value = answer;
-                if (document.getElementById('analysis')) {
-                    document.getElementById('analysis').value = analysis;
-                }
-                if (document.getElementById('options')) {
-                    document.getElementById('options').value = options;
-                }
-                
+
             } catch (error) {
                 console.error('生成题目失败:', error);
                 alert('生成题目失败：' + error.message);

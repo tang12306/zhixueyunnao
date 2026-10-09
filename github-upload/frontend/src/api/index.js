@@ -1,101 +1,75 @@
 import axios from 'axios';
 
-// 创建Node.js后端的axios实例
-const nodeApi = axios.create({
-  baseURL: process.env.VUE_APP_NODE_API_URL || 'http://localhost:5000/api', // 明确为Node后端URL
-  timeout: 10000
-});
-
-// Node.js API 请求拦截器
-nodeApi.interceptors.request.use(
-  config => {
-    const token = localStorage.getItem('token'); // 假设Node.js后端也用这个token
-    if (token) {
-      config.headers['x-auth-token'] = token;
-    }
-    return config;
-  },
-  error => {
-    return Promise.reject(error);
-  }
-);
-
-// Node.js API 响应拦截器 (保持原有逻辑，但只针对nodeApi)
-nodeApi.interceptors.response.use(
-  response => response.data,
-  error => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      // window.location.href = '/login'; // 登录页通常由Java后端管理，此处可能需要调整
-      console.error('Node.js API returned 401');
-    }
-    return Promise.reject(error);
-  }
-);
-
-// --- 创建Java后端的axios实例 ---
+// 所有请求都发往 Spring Boot 后端。
+// 开发时 vue devServer 把 /api、/questions 代理到后端（见 vue.config.js），上线时由 Nginx 同源转发，
+// 所以 baseURL 默认为空。前后端确需分开部署时再设置 VUE_APP_API_BASE。
 const javaApi = axios.create({
-  baseURL: process.env.VUE_APP_JAVA_API_URL || 'http://localhost:8080', // Java后端API基础URL
-  timeout: 180000, // 增加到3分钟，匹配后端设置
-  withCredentials: true // 如果Java后端使用session/cookie进行认证，这很重要
+  baseURL: process.env.VUE_APP_API_BASE || '',
+  timeout: 180000, // AI 生成较慢，3 分钟，与后端保持一致
+  withCredentials: true, // 登录状态保存在会话 Cookie 里
+  // 让后端在未登录时返回 401 JSON，而不是重定向到旧版登录页。
+  // 写请求的 CSRF 令牌由 axios 自动从 XSRF-TOKEN Cookie 读出，放进 X-XSRF-TOKEN 请求头。
+  headers: { 'X-Requested-With': 'XMLHttpRequest' }
 });
 
-// Java API 响应拦截器 (可以根据需要自定义，例如处理Java后端的特定错误)
+// 会话失效时的处理（跳转登录页），由 main.js 注册，避免这里反过来依赖 router
+let unauthorizedHandler = null;
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = handler;
+}
+
 javaApi.interceptors.response.use(
   response => response.data, // 直接返回 data 部分
-  error => {
-    // 可以在这里处理Java后端特有的错误，例如Spring Security的认证失败等
-    console.error('Java API Error:', error.response || error.message);
-    // 如果是401未授权错误，可能需要重定向到登录页面
-    if (error.response && error.response.status === 401) {
-      console.log('检测到未授权访问，重定向到登录页面');
-      window.location.href = '/login';
+  async error => {
+    const status = error.response && error.response.status;
+    const url = (error.config && error.config.url) || '';
+    // 登录、获取当前用户这类接口的 401 由调用方自己处理
+    if (status === 401 && !url.startsWith('/api/auth/') && unauthorizedHandler) {
+      unauthorizedHandler();
+    }
+    // 下载类接口（responseType: 'blob'）出错时，错误信息也是 Blob，先转回 JSON
+    const data = error.response && error.response.data;
+    if (typeof Blob !== 'undefined' && data instanceof Blob && (data.type || '').includes('json')) {
+      try {
+        error.response.data = JSON.parse(await data.text());
+      } catch (e) {
+        // 解析失败就保留原样
+      }
     }
     return Promise.reject(error);
   }
 );
 
+/**
+ * 取出后端返回的错误提示。后端出错时返回 {success: false, message, data}，message 可以直接展示。
+ */
+export function errorMessage(error, fallback = '请求失败，请稍后重试') {
+  const data = error && error.response && error.response.data;
+  if (data && typeof data.message === 'string' && data.message) {
+    return data.message;
+  }
+  if (error && error.code === 'ECONNABORTED') {
+    return '请求超时，请稍后重试';
+  }
+  return fallback;
+}
 
-// --- Node.js 后端 API 定义 (使用 nodeApi) ---
+/** AI 回复无法解析时，后端会在 data.raw 里带上模型的原始输出 */
+export function aiRawReply(error) {
+  const data = error && error.response && error.response.data;
+  return (data && data.data && typeof data.data.raw === 'string') ? data.data.raw : '';
+}
+
+// 登录 / 退出 / 当前用户
 export const authAPI = {
-  login: (credentials) => nodeApi.post('/auth/login', credentials),
-  register: (userData) => nodeApi.post('/auth/register', userData),
-  getCurrentUser: () => nodeApi.get('/auth/me'),
-  updateProfile: (profileData) => nodeApi.put('/auth/profile', profileData),
-  changePassword: (passwordData) => nodeApi.post('/auth/change-password', passwordData)
+  login: (credentials) => javaApi.post('/api/auth/login', credentials),
+  logout: () => javaApi.post('/api/auth/logout'),
+  me: () => javaApi.get('/api/auth/me')
 };
 
-export const questionsAPI = {
-  getQuestions: (params) => nodeApi.get('/questions', { params }),
-  getQuestionById: (id) => nodeApi.get(`/questions/${id}`),
-  createQuestion: (questionData) => nodeApi.post('/questions', questionData),
-  updateQuestion: (id, questionData) => nodeApi.put(`/questions/${id}`, questionData),
-  deleteQuestion: (id) => nodeApi.delete(`/questions/${id}`)
-};
-
-export const papersAPI = {
-  getPapers: (params) => nodeApi.get('/papers', { params }),
-  getPaperById: (id) => nodeApi.get(`/papers/${id}`),
-  createPaper: (paperData) => nodeApi.post('/papers', paperData),
-  updatePaper: (id, paperData) => nodeApi.put(`/papers/${id}`, paperData),
-  deletePaper: (id) => nodeApi.delete(`/papers/${id}`),
-  generatePaper: (criteria) => nodeApi.post('/papers/generate', criteria)
-};
-
-// Node.js AI辅助相关API (保留，以防仍有使用)
-export const nodeAiAPI = {
-  generateQuestion: (params) => nodeApi.post('/ai/generate-question', params),
-  saveQuestion: (questionData) => nodeApi.post('/ai/save-question', questionData),
-  improveQuestion: (params) => nodeApi.post('/ai/improve-question', params)
-};
-
-// --- Java 后端 API 定义 (使用 javaApi) ---
 // 新增：Java后端用户API
 export const javaUserAPI = {
-  getCurrentUser: () => {
-    console.log('调用getCurrentUser API');
-    return javaApi.get('/api/user/current');
-  },
+  getCurrentUser: () => javaApi.get('/api/user/current'),
   updateProfile: (profileData) => javaApi.put('/api/user/profile', profileData),
   changePassword: (passwordData) => javaApi.post('/api/user/change-password', passwordData)
 };
@@ -109,9 +83,11 @@ export const javaChaptersAPI = {
 };
 
 export const javaAiAPI = {
-  generateStructuredQuestions: (params) => javaApi.post('/api/ai/generate-question', null, { params }),
   saveGeneratedQuestions: (questionsData) => javaApi.post('/api/ai/save-questions', questionsData),
+  // 出题、出卷是异步任务：提交后返回 {taskId}，再用 getTask 轮询结果（见 composables/useAiTask.js）
   generateBatchQuestions: (payload) => javaApi.post('/api/ai/generate-batch-questions', payload),
+  generateExam: (payload) => javaApi.post('/api/ai/generate-exam', payload),
+  getTask: (taskId) => javaApi.get(`/api/ai/tasks/${encodeURIComponent(taskId)}`),
   exportExamToWord: (examData) => javaApi.post('/api/ai/export/word', examData, {
     responseType: 'blob',
     headers: {
@@ -152,6 +128,7 @@ export const javaSubjectAdminAPI = {
 // 新增：Java后端学生管理 CRUD API
 export const javaStudentAPI = {
   getAllStudents: (params) => javaApi.get('/api/students', { params }),
+  count: () => javaApi.get('/api/students/count'),
   getStudentById: (id) => javaApi.get(`/api/students/${id}`),
   createStudent: (studentData) => javaApi.post('/api/students', studentData),
   updateStudent: (id, studentData) => javaApi.put(`/api/students/${id}`, studentData),
@@ -203,16 +180,8 @@ export const javaSettingsAPI = {
   updateSetting: (key, value) => javaApi.put(`/api/settings/${key}`, { value }) // Payload is { value: ... }
 };
 
-// 更新统一导出以包含 settingsAPI
 const apis = {
-  // Node.js APIs
   auth: authAPI,
-  questions: questionsAPI,
-  papers: papersAPI,
-  ai: nodeAiAPI, // 旧的AI API 指向 Node.js
-  // settings: settingsAPI, // Comment out or remove Node.js settings
-
-  // Java APIs
   userJ: javaUserAPI, // 新增Java用户API
   subjectsJ: javaSubjectsAPI,
   chaptersJ: javaChaptersAPI,

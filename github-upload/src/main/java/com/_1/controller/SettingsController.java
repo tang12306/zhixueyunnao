@@ -4,7 +4,6 @@ import com._1.entity.Setting;
 import com._1.service.SettingService;
 import com._1.service.UserService;
 import com._1.entity.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,11 +17,13 @@ import java.util.Optional;
 @Controller
 @RequestMapping("/settings")
 public class SettingsController {
-    @Autowired
-    private SettingService settingService;
+    private final SettingService settingService;
+    private final UserService userService;
 
-    @Autowired
-    private UserService userService;
+    public SettingsController(SettingService settingService, UserService userService) {
+        this.settingService = settingService;
+        this.userService = userService;
+    }
 
     @GetMapping
     public String settings(Model model) {
@@ -48,7 +49,7 @@ public class SettingsController {
     public String addUser(@RequestParam String username, @RequestParam String password, @RequestParam String role) {
         User user = new User();
         user.setUsername(username);
-        user.setPassword(password);
+        user.setPassword(userService.encodePassword(password));
         user.setRole(role);
         userService.save(user);
         return "redirect:/settings";

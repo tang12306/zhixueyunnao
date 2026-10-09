@@ -1,13 +1,14 @@
 package com._1.controller;
 
+import com._1.core.exception.ApiException;
 import com._1.entity.Setting;
 import com._1.service.SettingService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/settings")
@@ -15,54 +16,39 @@ public class SettingApiController {
 
     private final SettingService settingService;
 
-    @Autowired
     public SettingApiController(SettingService settingService) {
         this.settingService = settingService;
     }
 
     @GetMapping
-    public ResponseEntity<List<Setting>> getAllEditableSettings() {
+    public List<Setting> getAllEditableSettings() {
         List<Setting> settings = settingService.getAllEditableSettings();
-
-        // 如果没有设置数据，初始化默认设置
+        // 还没有设置数据时先写入默认设置
         if (settings.isEmpty()) {
             settingService.initializeDefaultSettings();
             settings = settingService.getAllEditableSettings();
         }
-
-        return ResponseEntity.ok(settings);
+        return settings;
     }
 
     @GetMapping("/{key}")
-    public ResponseEntity<Setting> getSettingByKey(@PathVariable String key) {
-        return settingService.getSettingByKey(key)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public Setting getSettingByKey(@PathVariable String key) {
+        return settingService.getSettingByKey(key).orElseThrow(() -> ApiException.notFound("设置项不存在"));
     }
 
-    // In this new structure, direct creation might be less common, 
-    // defaults are handled by initializeDefaultSettings.
-    // This endpoint could be for admins to add new, unplanned settings if needed.
-    // For simplicity, we'll focus on updating existing settings for now.
-    /*
-    @PostMapping
-    public ResponseEntity<Setting> createSetting(@RequestBody Setting setting) {
-        Setting savedSetting = settingService.saveSetting(setting);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedSetting);
-    }
-    */
-
+    // 只修改已有设置项，默认设置由 initializeDefaultSettings 写入
     @PutMapping("/{key}")
-    public ResponseEntity<?> updateSetting(@PathVariable String key, @RequestBody Map<String, String> payload) {
+    public Setting updateSetting(@PathVariable String key, @RequestBody Map<String, String> payload) {
         String value = payload.get("value");
         if (value == null) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Value is required in payload."));
+            throw ApiException.badRequest("请填写设置值");
         }
         try {
-            Setting updatedSetting = settingService.updateSetting(key, value);
-            return ResponseEntity.ok(updatedSetting);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(404).body(Map.of("success", false, "message", e.getMessage()));
+            return settingService.updateSetting(key, value);
+        } catch (NoSuchElementException e) {
+            throw ApiException.notFound("设置项不存在");
+        } catch (IllegalStateException e) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "该设置项不允许修改");
         }
     }
-} 
+}

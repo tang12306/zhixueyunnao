@@ -11,7 +11,6 @@ import com._1.service.ClassService;
 import com._1.service.ExamService;
 import com._1.service.QuestionService;
 import com._1.service.SubjectService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -23,20 +22,23 @@ import java.util.stream.Collectors;
 @RequestMapping("/exam-generator")
 public class ExamGeneratorController {
 
-    @Autowired
-    private SubjectService subjectService;
-    
-    @Autowired
-    private ChapterService chapterService;
-    
-    @Autowired
-    private QuestionService questionService;
-    
-    @Autowired
-    private ExamService examService;
-    
-    @Autowired
-    private ClassService classService;
+    private final SubjectService subjectService;
+    private final ChapterService chapterService;
+    private final QuestionService questionService;
+    private final ExamService examService;
+    private final ClassService classService;
+
+    public ExamGeneratorController(SubjectService subjectService,
+                                   ChapterService chapterService,
+                                   QuestionService questionService,
+                                   ExamService examService,
+                                   ClassService classService) {
+        this.subjectService = subjectService;
+        this.chapterService = chapterService;
+        this.questionService = questionService;
+        this.examService = examService;
+        this.classService = classService;
+    }
     
     @GetMapping
     public String showGenerator(Model model) {
@@ -207,7 +209,9 @@ public class ExamGeneratorController {
                                     .collect(Collectors.toList());
                             } else {
                                 // 其他题型正常筛选
-                                QuestionType questionTypeEnum = QuestionType.valueOf(type);
+                                // FILL_BLANK 是旧写法，valueOf 不认识，用 parse 兼容别名
+                                QuestionType questionTypeEnum = QuestionType.parse(type)
+                                        .orElseThrow(IllegalArgumentException::new);
                                 filteredQuestions = questions.stream()
                                     .filter(q -> q.getType() == questionTypeEnum)
                                     .limit(count)

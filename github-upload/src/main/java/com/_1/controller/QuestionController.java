@@ -1,5 +1,7 @@
 package com._1.controller;
 
+import com._1.core.exception.ApiException;
+import com._1.dto.ai.SaveQuestionRequest;
 import com._1.entity.Chapter;
 import com._1.entity.Question;
 import com._1.entity.QuestionType;
@@ -7,9 +9,9 @@ import com._1.entity.Subject;
 import com._1.service.ChapterService;
 import com._1.service.QuestionService;
 import com._1.service.SubjectService;
+import com._1.service.ai.AiDraftService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,10 +27,10 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -38,14 +40,20 @@ public class QuestionController {
 
     private static final Logger logger = LoggerFactory.getLogger(QuestionController.class);
 
-    @Autowired
-    private QuestionService questionService;
+    private final QuestionService questionService;
+    private final SubjectService subjectService;
+    private final ChapterService chapterService;
+    private final AiDraftService draftService;
 
-    @Autowired
-    private SubjectService subjectService;
-    
-    @Autowired
-    private ChapterService chapterService;
+    public QuestionController(QuestionService questionService,
+                              SubjectService subjectService,
+                              ChapterService chapterService,
+                              AiDraftService draftService) {
+        this.questionService = questionService;
+        this.subjectService = subjectService;
+        this.chapterService = chapterService;
+        this.draftService = draftService;
+    }
 
     @GetMapping
     public String listQuestions(
@@ -171,18 +179,12 @@ public class QuestionController {
     // REST API: 根据ID获取题目详情
     @GetMapping("/{id}")
     @ResponseBody
-    public ResponseEntity<Question> getQuestionById(@PathVariable Long id) {
-        try {
-            Optional<Question> questionOptional = questionService.findById(id);
-            if (questionOptional.isPresent()) {
-                return ResponseEntity.ok(questionOptional.get());
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            logger.error("Error fetching question with id: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public Question getQuestionById(@PathVariable Long id) {
+        return findQuestion(id);
+    }
+
+    private Question findQuestion(Long id) {
+        return questionService.findById(id).orElseThrow(() -> ApiException.notFound("题目不存在"));
     }
 
     @GetMapping("/edit/{id}")
@@ -242,22 +244,19 @@ public class QuestionController {
             logger.info("Question saved successfully: ID={}", question.getId());
         } catch (Exception e) {
             logger.error("Error saving question: {}", e.getMessage(), e);
-            redirectAttributes.addFlashAttribute("errorMessage", "保存题目失败: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "保存题目失败");
         }
         return "redirect:/questions";
     }
 
     @DeleteMapping("/{id}")
     @ResponseBody
-    public ResponseEntity<?> deleteQuestion(@PathVariable Long id) {
-        try {
-            questionService.deleteById(id);
-            logger.info("Question with ID {} deleted successfully.", id);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            logger.error("Error deleting question with ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.badRequest().body("删除失败: " + e.getMessage());
-        }
+    public ResponseEntity<Void> deleteQuestion(@PathVariable Long id) {
+        findQuestion(id);
+        // 题目已被组进试卷时由全局异常处理返回 409
+        questionService.deleteById(id);
+        logger.info("Question with ID {} deleted successfully.", id);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/import")
@@ -282,15 +281,10 @@ public class QuestionController {
         logger.info("Querying questions with params: subjectId={}, chapterId={}, type={}, difficulty={}, keyword={}, page={}, size={}, sort={}",
                 subjectId, chapterId, type, difficulty, keyword, page, size, sort);
 
-        QuestionType questionType = null;
-        if (type != null && !type.trim().isEmpty()) {
-            try {
-                questionType = QuestionType.valueOf(type.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                logger.warn("Invalid question type string provided: {}. It will be ignored.", type);
-                // Optionally, you could return a BadRequest ResponseEntity here
-                // return ResponseEntity.badRequest().body("Invalid question type: " + type);
-            }
+        // 接受枚举名和中文名；无法识别时忽略该条件
+        QuestionType questionType = QuestionType.parse(type).orElse(null);
+        if (questionType == null && type != null && !type.isBlank()) {
+            logger.warn("Invalid question type string provided: {}. It will be ignored.", type);
         }
 
         // Sorting
@@ -298,16 +292,8 @@ public class QuestionController {
         Sort.Direction direction = sortParams.length > 1 && "asc".equalsIgnoreCase(sortParams[1]) ? Sort.Direction.ASC : Sort.Direction.DESC;
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, sortParams[0]));
 
-        try {
-            Page<Question> questionPage = questionService.findByCriteria(
-                    subjectId, chapterId, questionType, difficulty, keyword, pageRequest
-            );
-            return ResponseEntity.ok(questionPage);
-        } catch (Exception e) {
-            logger.error("Error querying questions: {}", e.getMessage(), e);
-            // Consider returning a more specific error response if needed
-            return ResponseEntity.internalServerError().build();
-        }
+        return ResponseEntity.ok(questionService.findByCriteria(
+                subjectId, chapterId, questionType, difficulty, keyword, pageRequest));
     }
 
     @GetMapping("/export")
@@ -338,67 +324,18 @@ public class QuestionController {
         return ResponseEntity.status(403).body(new ByteArrayResource("Excel模板导出功能已被禁用。".getBytes()));
     }
     
-    @PostMapping("/api/ai/save-questions")
+    // REST API: 题库页新建题目。表单提交（非 JSON）仍由上面的 saveQuestion 处理
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
-    public ResponseEntity<?> saveQuestions(@RequestBody List<Question> questions) {
-        try {
-            for(Question q : questions){
-                if(q.getChapter() != null && q.getChapter().getName() != null && q.getSubject() != null){
-                    Subject subject = subjectService.findByName(q.getSubject()).orElseGet(() -> {
-                        Subject newSub = new Subject();
-                        newSub.setName(q.getSubject());
-                        return subjectService.save(newSub);
-                    });
-                    Chapter chapter = chapterService.findByNameAndSubject(q.getChapter().getName(), subject).orElseGet(()->{
-                        Chapter newChap = new Chapter();
-                        newChap.setName(q.getChapter().getName());
-                        newChap.setSubject(subject);
-                        return chapterService.save(newChap);
-                    });
-                    q.setChapter(chapter);
-                }
-            }
-            questionService.saveAll(questions);
-            return ResponseEntity.ok().body(Map.of("message", "Questions saved successfully"));
-        } catch (Exception e) {
-            logger.error("Error saving AI generated questions: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().body("Error saving questions: " + e.getMessage());
-        }
+    public ResponseEntity<Question> createQuestion(@RequestBody SaveQuestionRequest request) {
+        Question saved = draftService.createQuestion(request);
+        return ResponseEntity.created(URI.create("/questions/" + saved.getId())).body(saved);
     }
 
+    // REST API: 题库页修改题目，请求格式与新建相同（subjectId、chapterId、题型枚举名）
     @PutMapping("/{id}")
     @ResponseBody
-    public ResponseEntity<?> updateQuestion(@PathVariable Long id, @RequestBody Question questionDetails) {
-        try {
-            Question existingQuestion = questionService.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Question not found with id: " + id));
-
-            existingQuestion.setTitle(questionDetails.getTitle());
-            existingQuestion.setSubject(questionDetails.getSubject());
-            existingQuestion.setType(questionDetails.getType());
-            existingQuestion.setDifficulty(questionDetails.getDifficulty());
-            existingQuestion.setScore(questionDetails.getScore());
-            existingQuestion.setContent(questionDetails.getContent());
-            existingQuestion.setOptions(questionDetails.getOptions());
-            existingQuestion.setAnswer(questionDetails.getAnswer());
-            existingQuestion.setAnalysis(questionDetails.getAnalysis());
-            existingQuestion.setTags(questionDetails.getTags());
-
-            if (questionDetails.getChapter() != null && questionDetails.getChapter().getId() != null) {
-                Chapter chapter = chapterService.findById(questionDetails.getChapter().getId()).orElse(null);
-                existingQuestion.setChapter(chapter);
-                 if (chapter != null && chapter.getSubject() != null && chapter.getSubject().getName() != null) {
-                    existingQuestion.setSubject(chapter.getSubject().getName());
-                }
-            }
-            
-            Question updatedQuestion = questionService.save(existingQuestion);
-            return ResponseEntity.ok(updatedQuestion);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            logger.error("Error updating question with ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.badRequest().body("Error updating question: " + e.getMessage());
-        }
+    public Question updateQuestion(@PathVariable Long id, @RequestBody SaveQuestionRequest request) {
+        return draftService.updateQuestion(id, request);
     }
 } 

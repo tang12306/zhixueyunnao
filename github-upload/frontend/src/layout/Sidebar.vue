@@ -136,7 +136,6 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { Setting, HomeFilled, Collection, Files, Cpu } from '@element-plus/icons-vue'; // 确保已安装 @element-plus/icons-vue
 
 const route = useRoute();
 

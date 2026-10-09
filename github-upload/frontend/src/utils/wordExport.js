@@ -168,10 +168,10 @@ export function generateAnswerSheetContent(examPreview, sections) {
     
     section.questions.forEach((question, index) => {
       content += '<div class="answer-area">';
-      content += '<div>' + (index + 1) + '. (' + question.score + '分)</div>';
+      content += '<div>' + (question.number || index + 1) + '. (' + question.score + '分)</div>';
       
       // 根据题目类型生成不同的答题区域
-      if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
+      if (['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(question.type)) {
         content += '<div>答案：___________</div>';
       } else if (question.type === 'FILL_IN_THE_BLANK') {
         content += '<div class="answer-line"></div>';

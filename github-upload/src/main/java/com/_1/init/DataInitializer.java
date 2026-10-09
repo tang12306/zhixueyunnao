@@ -1,30 +1,44 @@
 package com._1.init;
 
-import com._1.dto.StudentData;
+import com._1.core.common.Roles;
 import com._1.entity.School;
+import com._1.entity.User;
 import com._1.repository.SchoolRepository;
 import com._1.service.UserService;
 import com._1.service.SettingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
+/**
+ * 每次启动都会执行的基础数据初始化：学校、系统设置、首个管理员。
+ * 演示账号只在 dev 环境创建，见 {@link DemoDataInitializer}。
+ */
 @Component
+@Order(1)
 public class DataInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
+    private static final int MIN_ADMIN_PASSWORD_LENGTH = 8;
+
     private final UserService userService;
     private final SchoolRepository schoolRepository;
     private final SettingService settingService;
+    private final String adminUsername;
+    private final String adminPassword;
 
-    public DataInitializer(UserService userService, SchoolRepository schoolRepository, SettingService settingService) {
+    public DataInitializer(UserService userService, SchoolRepository schoolRepository, SettingService settingService,
+                           @Value("${app.bootstrap-admin.username:}") String adminUsername,
+                           @Value("${app.bootstrap-admin.password:}") String adminPassword) {
         this.userService = userService;
         this.schoolRepository = schoolRepository;
         this.settingService = settingService;
+        this.adminUsername = adminUsername;
+        this.adminPassword = adminPassword;
     }
 
     @Override
@@ -37,51 +51,31 @@ public class DataInitializer implements CommandLineRunner {
         // 初始化系统设置
         settingService.initializeDefaultSettings();
 
-        List<StudentData> studentsToProcess = new ArrayList<>();
+        // 没有管理员时，用环境变量创建第一个
+        initializeAdmin();
 
-        // 仅使用虚构演示数据，不包含真实学生姓名或学号
-        for (int index = 1; index <= 58; index++) {
-            String studentId = String.format("990000%03d", index);
-            String studentName = String.format("示例学生%03d", index);
-            studentsToProcess.add(new StudentData(studentId, studentName));
-        }
-
-        if (!studentsToProcess.isEmpty()) {
-            logger.info("Attempting to save {} student users and entities.", studentsToProcess.size());
-            for (StudentData data : studentsToProcess) {
-                if (data.getId() == null || data.getName() == null) {
-                    logger.warn("Skipping student data with null id (studentId) or name: {}", data);
-                    continue;
-                }
-                
-                // 1. 创建/获取 User 账户
-                // 学号作为用户名，也作为初始密码，角色为STUDENT
-                // saveUser 方法内部会检查用户是否已存在
-                userService.saveUser(data.getId(), data.getName(), data.getId(), "STUDENT");
-                // logger.info("Processed User: {}", data.getId()); // saveUser 内部已有日志
-
-                // 2. 创建/获取 Student 实体 (REMOVED - Student entity is merged into User)
-                // Optional<Student> existingStudent = studentService.findByStudentId(data.getId()); // data.getId() 是学号
-                // if (existingStudent.isEmpty()) {
-                //     Student studentEntity = new Student();
-                //     studentEntity.setStudentId(data.getId()); // 设置学号
-                //     studentEntity.setName(data.getName());    // 设置姓名
-                //     studentService.save(studentEntity);
-                //     logger.info("Saved new Student entity for studentId: {}", data.getId());
-                // } else {
-                //     // logger.info("Student entity for studentId: {} already exists. Skipping creation or update.", data.getId());
-                // }
-            }
-            logger.info("Student data processing finished.");
-        } else {
-            logger.info("No student data to process.");
-        }
-
-        // 初始化虚构教师账号，仅用于本地演示
-        logger.info("Attempting to save/update teacher: demo.teacher");
-        userService.saveUser("demo.teacher", "演示教师", "DemoTeacher123!", "TEACHER");
-        
         logger.info("Data initialization process finished.");
+    }
+
+    private void initializeAdmin() {
+        if (userService.countByRole(Roles.ADMIN) > 0) {
+            return;
+        }
+        if (adminUsername.isBlank() || adminPassword.isBlank()) {
+            logger.warn("系统中还没有管理员账号。请在 .env 中设置 APP_ADMIN_USERNAME 和 APP_ADMIN_PASSWORD 后重启。");
+            return;
+        }
+        if (adminPassword.length() < MIN_ADMIN_PASSWORD_LENGTH) {
+            logger.error("APP_ADMIN_PASSWORD 至少需要 {} 位，未创建管理员账号。", MIN_ADMIN_PASSWORD_LENGTH);
+            return;
+        }
+        Optional<User> existing = userService.findByUsername(adminUsername);
+        if (existing.isPresent()) {
+            logger.error("用户名 {} 已被其他账号占用，未创建管理员账号。请换一个 APP_ADMIN_USERNAME。", adminUsername);
+            return;
+        }
+        userService.saveUser(adminUsername, "系统管理员", adminPassword, Roles.ADMIN);
+        logger.info("已创建管理员账号 {}。", adminUsername);
     }
 
     private void initializeSchool() {
@@ -90,12 +84,10 @@ public class DataInitializer implements CommandLineRunner {
         if (existingSchool.isEmpty()) {
             School school = new School();
             school.setName(schoolName);
-            // school.setAddress("默认地址"); // 可以根据需要设置其他默认值
-            // school.setDescription("默认描述");
             schoolRepository.save(school);
             logger.info("Created default school: {}", schoolName);
         } else {
             logger.info("School '{}' already exists.", schoolName);
         }
     }
-} 
+}

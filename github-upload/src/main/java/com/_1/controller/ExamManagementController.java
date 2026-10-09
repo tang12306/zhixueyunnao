@@ -1,5 +1,6 @@
 package com._1.controller;
 
+import com._1.core.exception.ApiException;
 import com._1.entity.ClassEntity;
 import com._1.entity.Exam;
 import com._1.entity.Question;
@@ -8,7 +9,6 @@ import com._1.service.ClassService;
 import com._1.service.ExamService;
 import com._1.service.QuestionService;
 import com._1.service.SubjectService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,17 +33,20 @@ public class ExamManagementController {
 
     private static final Logger logger = LoggerFactory.getLogger(ExamManagementController.class);
 
-    @Autowired
-    private ExamService examService;
-    
-    @Autowired
-    private SubjectService subjectService;
-    
-    @Autowired
-    private ClassService classService;
-    
-    @Autowired
-    private QuestionService questionService;
+    private final ExamService examService;
+    private final SubjectService subjectService;
+    private final ClassService classService;
+    private final QuestionService questionService;
+
+    public ExamManagementController(ExamService examService,
+                                    SubjectService subjectService,
+                                    ClassService classService,
+                                    QuestionService questionService) {
+        this.examService = examService;
+        this.subjectService = subjectService;
+        this.classService = classService;
+        this.questionService = questionService;
+    }
     
     // 考试列表
     @GetMapping
@@ -84,7 +87,7 @@ public class ExamManagementController {
             model.addAttribute("totalItems", examsPage.getTotalElements());
         } catch (Exception e) {
             logger.error("获取考试列表失败", e);
-            model.addAttribute("errorMessage", "加载考试列表失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载考试列表失败");
             // 返回一个错误页面或带有错误消息的当前页面
         }
         return "exam/exam_list"; // 视图名称，后续创建
@@ -101,7 +104,7 @@ public class ExamManagementController {
             // model.addAttribute("questions", exam.getQuestions());       // 假设 Exam 实体已加载
         } catch (Exception e) {
             logger.error("查看考试详情失败, ID: {}", id, e);
-            model.addAttribute("errorMessage", "加载考试详情失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载考试详情失败");
         }
         return "exam/exam_detail"; // 视图名称，后续创建
     }
@@ -109,49 +112,44 @@ public class ExamManagementController {
     // 用于从出题系统自动保存考试的接口
     @PostMapping("/from-generator")
     public ResponseEntity<?> saveExamFromGenerator(@RequestBody ExamGenerationRequest request) {
-        try {
-            Exam exam = new Exam();
-            exam.setName(request.getExamName());
-            exam.setExamType(request.getExamType());
-            exam.setExamDate(new Date()); // 默认当前日期，或从request获取
-            exam.setStatus("未开始");      // 默认状态
-            exam.setCreateTime(new Date());
+        Exam exam = new Exam();
+        exam.setName(request.getExamName());
+        exam.setExamType(request.getExamType());
+        exam.setExamDate(new Date()); // 默认当前日期，或从request获取
+        exam.setStatus("未开始");      // 默认状态
+        exam.setCreateTime(new Date());
 
-            Subject subject = subjectService.findById(request.getSubjectId())
-                .orElseThrow(() -> new IllegalArgumentException("无效的学科ID: " + request.getSubjectId()));
-            exam.setSubject(subject);
-
-            if (request.getClassIds() != null && !request.getClassIds().isEmpty()) {
-                List<ClassEntity> targetClasses = request.getClassIds().stream()
-                    .map(classId -> classService.findById(classId).orElse(null))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-                exam.setTargetClasses(targetClasses);
-            }
-
-            if (request.getQuestionIds() != null && !request.getQuestionIds().isEmpty()) {
-                List<Question> questions = request.getQuestionIds().stream()
-                    .map(questionId -> questionService.findById(questionId).orElse(null))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-                exam.setQuestions(questions);
-                // 计算总分逻辑，这里简化为题目数量*默认分值，或从Question实体获取
-                int totalScore = questions.stream().mapToInt(q -> q.getScore() != null ? q.getScore() : 10).sum(); // 假设默认每题10分
-                exam.setTotalScore(totalScore);
-            } else {
-                exam.setTotalScore(0);
-            }
-
-            Exam savedExam = examService.save(exam);
-            // 返回新创建的考试的ID或整个对象
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedExam);
-        } catch (IllegalArgumentException e) {
-            logger.error("从生成器保存考试失败 (参数错误): {}", e.getMessage());
-            return ResponseEntity.badRequest().body("参数错误: " + e.getMessage());
-        } catch (Exception e) {
-            logger.error("从生成器保存考试失败", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("保存考试失败: " + e.getMessage());
+        if (request.getSubjectId() == null) {
+            throw ApiException.badRequest("请选择学科");
         }
+        Subject subject = subjectService.findById(request.getSubjectId())
+            .orElseThrow(() -> ApiException.badRequest("学科不存在"));
+        exam.setSubject(subject);
+
+        if (request.getClassIds() != null && !request.getClassIds().isEmpty()) {
+            List<ClassEntity> targetClasses = request.getClassIds().stream()
+                .map(classId -> classService.findById(classId).orElse(null))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+            exam.setTargetClasses(targetClasses);
+        }
+
+        if (request.getQuestionIds() != null && !request.getQuestionIds().isEmpty()) {
+            List<Question> questions = request.getQuestionIds().stream()
+                .map(questionId -> questionService.findById(questionId).orElse(null))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+            exam.setQuestions(questions);
+            // 计算总分逻辑，这里简化为题目数量*默认分值，或从Question实体获取
+            int totalScore = questions.stream().mapToInt(q -> q.getScore() != null ? q.getScore() : 10).sum(); // 假设默认每题10分
+            exam.setTotalScore(totalScore);
+        } else {
+            exam.setTotalScore(0);
+        }
+
+        Exam savedExam = examService.save(exam);
+        // 返回新创建的考试的ID或整个对象
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedExam);
     }
     
     // 显示创建新考试的表单 (如果除了自动生成，还允许手动创建)
@@ -206,7 +204,7 @@ public class ExamManagementController {
             return "redirect:/exams";
         } catch (Exception e) {
             logger.error("保存考试失败", e);
-            model.addAttribute("errorMessage", "保存失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "保存失败");
             model.addAttribute("exam", exam); // 回填表单
         model.addAttribute("subjects", subjectService.findAll());
         model.addAttribute("classes", classService.findAll());
@@ -227,7 +225,7 @@ public class ExamManagementController {
             model.addAttribute("allQuestions", questionService.findAll()); //  用于增删题目
         } catch (Exception e) {
             logger.error("加载编辑考试表单失败, ID: {}", id, e);
-            model.addAttribute("errorMessage", "加载考试信息失败: " + e.getMessage());
+            model.addAttribute("errorMessage", "加载考试信息失败");
             return "redirect:/exams"; // 或者错误页
         }
         return "exam/exam_form";
@@ -235,14 +233,13 @@ public class ExamManagementController {
     
     // 删除考试
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteExam(@PathVariable Long id) {
-        try {
-            examService.deleteById(id);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            logger.error("删除考试失败, ID: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("删除失败: " + e.getMessage());
+    public ResponseEntity<Void> deleteExam(@PathVariable Long id) {
+        if (examService.findById(id).isEmpty()) {
+            throw ApiException.notFound("考试不存在");
         }
+        // 仍被成绩等数据引用时，由全局异常处理返回 409
+        examService.deleteById(id);
+        return ResponseEntity.ok().build();
     }
     }
     

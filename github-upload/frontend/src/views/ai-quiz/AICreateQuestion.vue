@@ -29,12 +29,7 @@
               <el-col :span="12">
                 <el-form-item label="题型" prop="type" :rules="{ required: true, message: '请选择题型', trigger: 'change' }">
                   <el-select v-model="form.type" placeholder="选择题型" style="width: 100%;">
-                    <el-option label="单选题" value="单选题"></el-option>
-                    <el-option label="多选题" value="多选题"></el-option>
-                    <el-option label="判断题" value="判断题"></el-option>
-                    <el-option label="填空题" value="填空题"></el-option>
-                    <el-option label="简答题" value="简答题"></el-option>
-                    <!-- 更多题型 -->
+                    <el-option v-for="t in QUESTION_TYPES" :key="t.value" :label="t.label" :value="t.value"></el-option>
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -84,7 +79,8 @@
 
           <div v-if="generatingLoading" class="loading-placeholder">
             <el-icon class="is-loading" :size="50"><Loading /></el-icon>
-            <p>AI正在努力出题中，请稍候...</p>
+            <p>AI 正在出题：{{ progressText }}</p>
+            <p class="loading-tip">题目较多时需要 1～2 分钟，可以先离开此页面，回来后会接着显示结果</p>
           </div>
           
           <el-empty 
@@ -107,31 +103,35 @@
                   <el-form label-position="top">
                     <el-form-item label="题型">
                       <el-select v-model="question.type" placeholder="选择题型" style="width: 100%;">
-                        <el-option label="单选题" value="单选题"></el-option>
-                        <el-option label="多选题" value="多选题"></el-option>
-                        <el-option label="判断题" value="判断题"></el-option>
-                        <el-option label="填空题" value="填空题"></el-option>
-                        <el-option label="简答题" value="简答题"></el-option>
+                        <el-option v-for="t in QUESTION_TYPES" :key="t.value" :label="t.label" :value="t.value"></el-option>
                       </el-select>
                     </el-form-item>
-                    <el-form-item label="题目内容 (Markdown支持)">
+                    <el-form-item label="题目内容">
                       <el-input type="textarea" :rows="3" v-model="question.content" placeholder="题目内容" />
                     </el-form-item>
-                    
-                    <div v-if="isChoiceQuestion(question.type)">
-                      <el-form-item label="选项 (每行一个选项)">
-                        <el-input type="textarea" :rows="question.options ? question.options.length + 1 : 3" v-model="question.optionsString" @input="(val) => updateQuestionOptions(question, val)" placeholder="例如：\nA. 选项一\nB. 选项二" />
+
+                    <div v-if="isChoiceType(question.type)">
+                      <el-form-item label="选项 (每行一个，依次对应 A、B、C…，不用写字母)">
+                        <el-input type="textarea" :rows="question.options ? question.options.length + 1 : 3" v-model="question.optionsString" @input="(val) => updateQuestionOptions(question, val)" :placeholder="'例如：\n选项一\n选项二'" />
                       </el-form-item>
                       <el-form-item label="正确答案">
                         <el-input v-model="question.answer" placeholder="例如：A 或 A,B" />
                       </el-form-item>
                     </div>
-                    <div v-else-if="question.type === '填空题'"> 
+                    <div v-else-if="question.type === 'FILL_IN_THE_BLANK'">
                         <el-form-item label="参考答案 (多个答案用 ; 分隔)">
                             <el-input type="textarea" :rows="2" v-model="question.answer" placeholder="例如：答案1;答案2" />
                         </el-form-item>
                     </div>
-                     <div v-else> 
+                    <div v-else-if="question.type === 'TRUE_FALSE'">
+                        <el-form-item label="正确答案">
+                            <el-radio-group v-model="question.answer">
+                              <el-radio label="正确">正确</el-radio>
+                              <el-radio label="错误">错误</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+                    </div>
+                     <div v-else>
                         <el-form-item label="参考答案">
                             <el-input type="textarea" :rows="3" v-model="question.answer" placeholder="请输入参考答案" />
                         </el-form-item>
@@ -155,11 +155,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, nextTick } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Setting, List, MagicStick, Loading, DocumentChecked, Delete } from '@element-plus/icons-vue';
-import api from '@/api/index.js'; 
+import { ElMessage } from 'element-plus';
+import { Setting, List, MagicStick, Loading } from '@element-plus/icons-vue';
+import api, { errorMessage } from '@/api/index.js';
+import { QUESTION_TYPES, isChoiceType } from '@/utils/questionTypes';
+import { showAiError } from '@/utils/aiErrors';
+import { useAiTask } from '@/composables/useAiTask';
 import { v4 as uuidv4 } from 'uuid'; // 用于临时ID
 
 const router = useRouter();
@@ -169,7 +172,7 @@ const formRef = ref(null);
 const form = reactive({
   subjectId: null,
   chapterIds: [], // 支持多选章节
-  type: '单选题',
+  type: 'SINGLE_CHOICE',
   difficulty: 3,
   count: 3, // 默认生成3条方便测试
   customPrompt: '',
@@ -178,13 +181,18 @@ const form = reactive({
 const subjects = ref([]);
 const chapters = ref([]);
 const generatedQuestions = ref([]); // Store AI-generated questions for editing
+// 生成题目时用的学科、章节和难度；生成后再改左侧表单，不影响这批题目保存到哪里
+const generatedFor = ref(null);
 
-const generatingLoading = ref(false);
+const { running: generatingLoading, progressText, run: runAiTask, resume: resumeAiTask } =
+  useAiTask('ai-create-question-task');
 const savingLoading = ref(false);
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
   fetchSubjects();
+  // 上次生成途中离开了页面，接着等结果
+  resumeAiTask(showGeneratedQuestions, error => showAiError(error));
 });
 
 // --- API Calls & Logic ---
@@ -213,11 +221,28 @@ const handleSubjectChange = async (subjectId) => {
   }
 };
 
+const showGeneratedQuestions = (questions, target) => {
+  const list = Array.isArray(questions) ? questions : [];
+  generatedFor.value = target;
+  generatedQuestions.value = list.map(q => ({
+    ...q,
+    tempId: uuidv4(), // Assign a temporary unique ID for v-for key and editing tracking
+    originalScore: q.score,
+    score: q.score || 5,
+    // 选项不带字母前缀，每行一个，方便在文本框里编辑
+    optionsString: Array.isArray(q.options) ? q.options.join('\n') : '',
+  }));
+  if (list.length > 0) {
+    ElMessage.success(`成功生成 ${list.length} 道题目，请预览和编辑。`);
+  } else {
+    ElMessage.warning('AI 没有返回题目，请调整要求后重试。');
+  }
+};
+
 const submitGenerationTask = async () => {
   if (!formRef.value) return;
   formRef.value.validate(async (valid) => {
     if (valid) {
-      generatingLoading.value = true;
       generatedQuestions.value = []; // Clear previous results
       try {
         const requestPayload = {
@@ -229,35 +254,21 @@ const submitGenerationTask = async () => {
           customPrompt: form.customPrompt || null,
         };
         
-        const response = await api.aiJ.generateBatchQuestions(requestPayload); // Use the new batch API
-
-        if (response && response.success && Array.isArray(response.questions)) {
-          generatedQuestions.value = response.questions.map(q => ({
-            ...q,
-            tempId: uuidv4(), // Assign a temporary unique ID for v-for key and editing tracking
-            originalScore: q.score, // Store AI suggested score separately if needed for comparison
-            score: q.score || 5, // Default score if AI doesn't provide, or use AI's score
-            // 确保题目类型正确设置，如果AI没有返回类型，使用表单中选择的类型
-            type: q.type || form.type,
-            // For choice questions, transform options array to a newline-separated string for textarea editing
-            optionsString: Array.isArray(q.options) ? q.options.join('\n') : '',
-          }));
-          ElMessage.success(`成功生成 ${response.questions.length} 道题目! 请预览和编辑。`);
-        } else {
-          ElMessage.error(response.message || 'AI生成题目失败，未返回有效数据。');
-        }
+        const target = {
+          subjectId: form.subjectId,
+          // 只选了一个章节时题目归到该章节；多选时无法判断每道题属于哪章，只记学科
+          chapterId: form.chapterIds.length === 1 ? form.chapterIds[0] : null,
+          difficulty: form.difficulty,
+        };
+        // 参数错误时提交就返回 4xx；AI 生成失败时任务以失败结束，都由 catch 处理
+        const questions = await runAiTask(() => api.aiJ.generateBatchQuestions(requestPayload), target);
+        showGeneratedQuestions(questions, target);
       } catch (error) {
-        ElMessage.error('请求AI服务失败: ' + (error.response?.data?.message || error.message));
+        showAiError(error);
         console.error("Error generating questions:", error);
-      } finally {
-        generatingLoading.value = false;
       }
     }
   });
-};
-
-const isChoiceQuestion = (type) => {
-  return ['单选题', '多选题'].includes(type);
 };
 
 const updateQuestionOptions = (question, optionsString) => {
@@ -276,42 +287,24 @@ const saveAllGeneratedQuestions = async () => {
   }
   savingLoading.value = true;
   try {
+    const target = generatedFor.value;
     const questionsToSave = generatedQuestions.value.map(q => ({
-      subjectId: form.subjectId,
-      chapterId: q.chapterId, // This needs to be handled if AI returns chapter specific info or if we need to pick one from form.chapterIds
-      type: q.type || form.type, // 确保题目类型不为空，如果题目没有类型，使用表单中选择的类型
-      difficulty: q.difficulty || form.difficulty, // Use question's own difficulty if edited, else form's
+      subjectId: target.subjectId,
+      chapterId: target.chapterId,
+      type: q.type,
+      difficulty: target.difficulty,
       content: q.content,
-      options: q.options, // Already an array due to updateQuestionOptions or from AI
+      options: isChoiceType(q.type) ? q.options : [],
       answer: q.answer,
       analysis: q.analysis,
       score: q.score,
-      // tags: q.tags, // If AI provides tags and QuestionDTO supports it
     }));
 
-    // A potential issue: if form.chapterIds has multiple IDs, 
-    // which chapterId should be associated with each question when saving?
-    // Current DTO for save-questions seems to imply a single chapterId per question or none.
-    // For now, I'm setting q.chapterId to null, assuming it will be handled or not required by the backend
-    // OR that AI needs to return chapterId with each question if it was chapter-specific.
-    // A simpler approach might be to associate all questions with the FIRST chapterId if multiple are selected in the form.
-    if (form.chapterIds && form.chapterIds.length > 0) {
-        questionsToSave.forEach(q => {
-            if (!q.chapterId) { // If AI didn't specify a chapter for the question
-                q.chapterId = form.chapterIds[0]; // Default to the first selected chapter
-            }
-        });
-    }
-    
     const response = await api.aiJ.saveGeneratedQuestions(questionsToSave);
-    if (response && response.success) {
-      ElMessage.success(response.message || `成功保存 ${response.count || questionsToSave.length} 道题目!`);
-      generatedQuestions.value = []; // Clear after saving
-    } else {
-      ElMessage.error(response.message || '保存题目失败。');
-    }
+    ElMessage.success(response?.message || `成功保存 ${questionsToSave.length} 道题目`);
+    generatedQuestions.value = [];
   } catch (error) {
-    ElMessage.error('保存题目请求失败: ' + (error.response?.data?.message || error.message));
+    ElMessage.error(errorMessage(error, '保存题目失败'));
     console.error("Error saving questions:", error);
   } finally {
     savingLoading.value = false;
@@ -361,6 +354,11 @@ const goBack = () => {
 
 .question-card-item .el-form-item {
   margin-bottom: 10px; /* Compact form items within question cards */
+}
+
+.loading-tip {
+  font-size: 13px;
+  margin-top: 0;
 }
 
 .loading-placeholder {

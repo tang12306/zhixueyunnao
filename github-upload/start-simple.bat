@@ -7,6 +7,7 @@ echo   Simple Startup Script
 echo ========================================
 
 set ROOT=%~dp0
+cd /d "%ROOT%"
 
 echo Step 1: Checking environment...
 java -version >nul 2>&1
@@ -25,63 +26,69 @@ if errorlevel 1 (
 )
 echo Docker: OK
 
-echo Step 2: Cleaning existing processes...
-taskkill /F /IM java.exe >nul 2>&1
-taskkill /F /IM node.exe >nul 2>&1
-echo Process cleanup: OK
-
-echo Step 3: Starting databases...
-cd /d "%ROOT%"
-docker-compose up -d
-if errorlevel 1 (
-    echo ERROR: Failed to start databases
+if not exist "%ROOT%.env" (
+    copy "%ROOT%.env.example" "%ROOT%.env" >nul
+    echo.
+    echo A new .env file was created from .env.example.
+    echo Fill in DB_PASSWORD ^(and DEEPSEEK_API_KEY for AI features^) in:
+    echo   %ROOT%.env
+    echo then run this script again.
     pause
     exit /b 1
 )
-echo Databases: Starting...
+echo .env: OK
 
-echo Step 4: Waiting for databases...
+echo Step 2: Stopping windows left over from a previous run...
+taskkill /FI "WINDOWTITLE eq Spring Boot Backend*" /T /F >nul 2>&1
+taskkill /FI "WINDOWTITLE eq Vue.js Frontend*" /T /F >nul 2>&1
+echo Cleanup: OK
+
+echo Step 3: Starting MySQL...
+docker compose up -d
+if errorlevel 1 (
+    echo ERROR: Failed to start MySQL. Check that DB_PASSWORD is set in .env
+    pause
+    exit /b 1
+)
+
+echo Step 4: Waiting for MySQL...
 timeout /t 15 /nobreak >nul
-echo Database wait: OK
+echo MySQL wait: OK
 
-echo Step 5: Starting Node.js backend...
-cd /d "%ROOT%\backend"
-start "Node.js Backend" cmd /k "echo Starting Node.js Backend... && npm start"
-echo Node.js: Starting...
-
-echo Step 6: Starting Spring Boot backend...
-cd /d "%ROOT%"
+echo Step 5: Starting Spring Boot backend...
 where mvn >nul 2>&1
 if errorlevel 1 (
-    set MAVEN_CMD=%ROOT%mvnw.cmd
+    set MAVEN_CMD="%ROOT%mvnw.cmd"
 ) else (
     set MAVEN_CMD=mvn
 )
-start "Spring Boot Backend" cmd /k "echo Starting Spring Boot Backend... && echo Current directory: %CD% && %MAVEN_CMD% spring-boot:run"
+start "Spring Boot Backend" /D "%ROOT%." cmd /k "%MAVEN_CMD% spring-boot:run"
 echo Spring Boot: Starting...
 
-echo Step 7: Starting Vue.js frontend...
-cd /d "%ROOT%\frontend"
-start "Vue.js Frontend" cmd /k "echo Starting Vue.js Frontend... && npm run serve"
+echo Step 6: Starting Vue.js frontend...
+start "Vue.js Frontend" /D "%ROOT%frontend" cmd /k "npm run serve"
 echo Vue.js: Starting...
 
-echo Step 8: Waiting for services to start...
+echo Step 7: Waiting for services to start...
 echo This will take about 60-90 seconds...
 timeout /t 60 /nobreak >nul
 
-echo Step 9: Opening browser...
+echo Step 8: Opening browser...
 start http://localhost:8083
 
 echo ========================================
 echo   Startup Complete!
 echo ========================================
 echo Frontend: http://localhost:8083
-echo Node.js API: http://localhost:5000
-echo Spring Boot API: http://localhost:8080
-echo Login: admin / admin123
+echo Backend:  http://localhost:8080 (the frontend proxies /api to it)
+echo.
+echo Accounts:
+echo - With SPRING_PROFILES_ACTIVE=dev in .env: demo.admin / demo.teacher,
+echo   passwords are listed in the docs folder (account guide)
+echo - Otherwise: APP_ADMIN_USERNAME / APP_ADMIN_PASSWORD from .env
 echo ========================================
 echo.
-echo IMPORTANT: 
+echo IMPORTANT:
 echo - Keep the service windows open
 echo - If services fail to start, check the individual windows
 echo - Use stop.bat to stop all services

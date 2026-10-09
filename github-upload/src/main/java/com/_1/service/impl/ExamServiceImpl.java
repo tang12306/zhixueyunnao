@@ -11,7 +11,6 @@ import com._1.repository.QuestionRepository;
 import com._1.repository.SubjectRepository;
 import com._1.service.ExamService;
 import com._1.service.QuestionService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,20 +23,23 @@ import java.util.Optional;
 
 @Service
 public class ExamServiceImpl implements ExamService {
-    @Autowired
-    private ExamRepository examRepository;
-    
-    @Autowired
-    private SubjectRepository subjectRepository;
-    
-    @Autowired
-    private QuestionService questionService;
-    
-    @Autowired
-    private QuestionRepository questionRepository;
-    
-    @Autowired
-    private ClassEntityRepository classRepository;
+    private final ExamRepository examRepository;
+    private final SubjectRepository subjectRepository;
+    private final QuestionService questionService;
+    private final QuestionRepository questionRepository;
+    private final ClassEntityRepository classRepository;
+
+    public ExamServiceImpl(ExamRepository examRepository,
+                           SubjectRepository subjectRepository,
+                           QuestionService questionService,
+                           QuestionRepository questionRepository,
+                           ClassEntityRepository classRepository) {
+        this.examRepository = examRepository;
+        this.subjectRepository = subjectRepository;
+        this.questionService = questionService;
+        this.questionRepository = questionRepository;
+        this.classRepository = classRepository;
+    }
 
     @Override
     public List<Exam> findAll() {

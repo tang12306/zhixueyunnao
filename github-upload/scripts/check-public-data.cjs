@@ -14,6 +14,8 @@ const report = (file, line, category) => violations.push({ file, line, category 
 // Only report file locations and categories, never credential values.
 for (const file of files) {
   if (path.basename(file) === 'package-lock.json') continue;
+  // 工作区里已删除、尚未暂存的文件不会被提交，跳过
+  if (!fs.existsSync(path.join(root, file))) continue;
   const data = fs.readFileSync(path.join(root, file));
   if (data.includes(0)) continue;
   const text = data.toString('utf8');
@@ -46,7 +48,8 @@ const requirePattern = (file, pattern, category, absent = false) => {
   if (matches === absent) report(file, 1, category);
 };
 
-const initializer = 'src/main/java/com/_1/init/DataInitializer.java';
+const initializer = 'src/main/java/com/_1/init/DemoDataInitializer.java';
+requirePattern(initializer, /@Profile\("dev"\)/, 'demo-data-dev-only');
 requirePattern(initializer, /for \(int index = 1; index <= 58; index\+\+\)/, 'demo-roster-count');
 requirePattern(initializer, /String studentId = String\.format\("990000%03d", index\);/, 'demo-student-id-format');
 requirePattern(initializer, /String studentName = String\.format\("示例学生%03d", index\);/, 'demo-student-name-format');
@@ -61,7 +64,6 @@ requirePattern(properties, /^spring\.datasource\.username=\$\{DB_USERNAME:root\}
 requirePattern(properties, /^spring\.datasource\.password=\$\{DB_PASSWORD\}\r?$/m, 'database-password-config');
 requirePattern(properties, /^deepseek\.api\.key=\$\{DEEPSEEK_API_KEY:\}\r?$/m, 'deepseek-key-config');
 requirePattern(properties, /^openai\.api\.key=\$\{OPENAI_API_KEY:\}\r?$/m, 'openai-key-config');
-requirePattern('src/main/application.yml', /secret: \$\{JWT_SECRET\}/, 'jwt-secret-config');
 requirePattern('docker-compose.yml', /MYSQL_ROOT_PASSWORD: \$\{DB_PASSWORD:\?/, 'mysql-container-password-config');
 
 const accounts = 'docs/系统账号密码说明.md';

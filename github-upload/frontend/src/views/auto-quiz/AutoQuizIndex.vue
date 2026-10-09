@@ -1,9 +1,9 @@
 <template>
   <div class="auto-quiz-index-container">
     <el-card>
-      <div slot="header">
+      <template #header>
         <span>自动出题与组卷</span>
-      </div>
+      </template>
       <p>请选择您的出题方式：</p>
       <div class="options-container">
         <router-link to="/auto-quiz/ai-create">

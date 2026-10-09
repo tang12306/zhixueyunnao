@@ -5,7 +5,6 @@ import com._1.service.QuestionService;
 import org.apache.poi.xwpf.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,8 +26,11 @@ public class PaperController {
 
     private static final Logger logger = LoggerFactory.getLogger(PaperController.class);
 
-    @Autowired
-    private QuestionService questionService;
+    private final QuestionService questionService;
+
+    public PaperController(QuestionService questionService) {
+        this.questionService = questionService;
+    }
 
     /**
      * 直接导出试卷为Word文档（不保存到数据库）

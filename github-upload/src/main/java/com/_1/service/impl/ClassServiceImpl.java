@@ -8,7 +8,6 @@ import com._1.repository.ExamRepository;
 import com._1.repository.MajorRepository;
 import com._1.repository.UserRepository;
 import com._1.service.ClassService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,17 +19,20 @@ import java.util.Optional;
 @Service
 public class ClassServiceImpl implements ClassService {
 
-    @Autowired
-    private ClassEntityRepository classEntityRepository;
+    private final ClassEntityRepository classEntityRepository;
+    private final ExamRepository examRepository;
+    private final MajorRepository majorRepository;
+    private final UserRepository userRepository;
 
-    @Autowired
-    private ExamRepository examRepository;
-
-    @Autowired
-    private MajorRepository majorRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    public ClassServiceImpl(ClassEntityRepository classEntityRepository,
+                            ExamRepository examRepository,
+                            MajorRepository majorRepository,
+                            UserRepository userRepository) {
+        this.classEntityRepository = classEntityRepository;
+        this.examRepository = examRepository;
+        this.majorRepository = majorRepository;
+        this.userRepository = userRepository;
+    }
 
     @Override
     public List<ClassEntity> findAll() {

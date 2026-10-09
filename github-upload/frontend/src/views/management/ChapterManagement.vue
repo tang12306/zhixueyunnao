@@ -63,10 +63,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '../../api'; // Assuming default export from api/index.js
-import { Plus, Edit, Delete } from '@element-plus/icons-vue'; // Import icons
 
 const subjects = ref([]);
 const selectedSubjectId = ref(null);

@@ -5,7 +5,6 @@ import com._1.entity.Score;
 import com._1.service.ExamService;
 import com._1.service.ScoreService;
 // import com._1.service.ScoreExcelService; // 已移除
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,10 +18,13 @@ import java.util.DoubleSummaryStatistics;
 @Controller
 @RequestMapping("/scores")
 public class ScoreController {
-    @Autowired
-    private ScoreService scoreService;
-    @Autowired
-    private ExamService examService;
+    private final ScoreService scoreService;
+    private final ExamService examService;
+
+    public ScoreController(ScoreService scoreService, ExamService examService) {
+        this.scoreService = scoreService;
+        this.examService = examService;
+    }
     // private ScoreExcelService scoreExcelService; // 已移除
 
     @GetMapping

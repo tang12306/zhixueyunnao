@@ -10,7 +10,6 @@ import com._1.service.QuestionService;
 import org.apache.poi.xwpf.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,14 +25,17 @@ public class PaperServiceImpl implements PaperService {
     
     private static final Logger logger = LoggerFactory.getLogger(PaperServiceImpl.class);
     
-    @Autowired
-    private PaperRepository paperRepository;
-    
-    @Autowired
-    private PaperQuestionRepository paperQuestionRepository;
-    
-    @Autowired
-    private QuestionService questionService;
+    private final PaperRepository paperRepository;
+    private final PaperQuestionRepository paperQuestionRepository;
+    private final QuestionService questionService;
+
+    public PaperServiceImpl(PaperRepository paperRepository,
+                            PaperQuestionRepository paperQuestionRepository,
+                            QuestionService questionService) {
+        this.paperRepository = paperRepository;
+        this.paperQuestionRepository = paperQuestionRepository;
+        this.questionService = questionService;
+    }
     
     @Override
     public Paper save(Paper paper) {

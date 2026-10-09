@@ -1,10 +1,10 @@
 package com._1.controller;
 
+import com._1.core.exception.ApiException;
 import com._1.entity.Chapter;
 import com._1.entity.Subject;
 import com._1.service.ChapterService;
 import com._1.service.SubjectService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,11 +16,13 @@ import java.util.List;
 @RequestMapping("/chapters")
 public class ChapterController {
 
-    @Autowired
-    private ChapterService chapterService;
-    
-    @Autowired
-    private SubjectService subjectService;
+    private final ChapterService chapterService;
+    private final SubjectService subjectService;
+
+    public ChapterController(ChapterService chapterService, SubjectService subjectService) {
+        this.chapterService = chapterService;
+        this.subjectService = subjectService;
+    }
 
     @GetMapping
     public String listChapters(@RequestParam(required = false) Long subjectId, Model model) {
@@ -73,16 +75,11 @@ public class ChapterController {
     @DeleteMapping("/{id}")
     @ResponseBody
     public ResponseEntity<Void> deleteChapter(@PathVariable Long id) {
-        try {
-            Chapter chapter = chapterService.findById(id).orElse(null);
-            Long subjectId = null;
-            if (chapter != null && chapter.getSubject() != null) {
-                subjectId = chapter.getSubject().getId();
-            }
-            chapterService.deleteById(id);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+        if (chapterService.findById(id).isEmpty()) {
+            throw ApiException.notFound("章节不存在");
         }
+        // 章节下还有题目时由全局异常处理返回 409
+        chapterService.deleteById(id);
+        return ResponseEntity.ok().build();
     }
 } 

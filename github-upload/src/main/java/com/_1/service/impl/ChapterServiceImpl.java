@@ -4,15 +4,17 @@ import com._1.entity.Chapter;
 import com._1.entity.Subject;
 import com._1.repository.ChapterRepository;
 import com._1.service.ChapterService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class ChapterServiceImpl implements ChapterService {
-    @Autowired
-    private ChapterRepository chapterRepository;
+    private final ChapterRepository chapterRepository;
+
+    public ChapterServiceImpl(ChapterRepository chapterRepository) {
+        this.chapterRepository = chapterRepository;
+    }
 
     @Override
     public List<Chapter> findAll() {

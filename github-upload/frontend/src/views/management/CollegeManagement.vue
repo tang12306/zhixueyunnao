@@ -9,7 +9,7 @@
       </template>
 
       <!-- 搜索和操作 -->
-      <el-form :inline="true" :model="listQuery" class="demo-form-inline" @submit.native.prevent>
+      <el-form :inline="true" :model="listQuery" class="demo-form-inline" @submit.prevent>
         <el-form-item label="学院名称">
           <el-input v-model="listQuery.name" placeholder="按学院名称搜索" @keyup.enter="handleFilter"></el-input>
         </el-form-item>

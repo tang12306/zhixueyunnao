@@ -11,7 +11,6 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,20 +27,23 @@ public class ScoreServiceImpl implements ScoreService {
 
     private static final Logger logger = LoggerFactory.getLogger(ScoreServiceImpl.class);
 
-    @Autowired
-    private ScoreRepository scoreRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private ExamRepository examRepository;
-    
-    @Autowired
-    private ClassEntityRepository classEntityRepository;
+    private final ScoreRepository scoreRepository;
+    private final UserRepository userRepository;
+    private final ExamRepository examRepository;
+    private final ClassEntityRepository classEntityRepository;
+    private final UserService userService;
 
-    @Autowired
-    private UserService userService;
+    public ScoreServiceImpl(ScoreRepository scoreRepository,
+                            UserRepository userRepository,
+                            ExamRepository examRepository,
+                            ClassEntityRepository classEntityRepository,
+                            UserService userService) {
+        this.scoreRepository = scoreRepository;
+        this.userRepository = userRepository;
+        this.examRepository = examRepository;
+        this.classEntityRepository = classEntityRepository;
+        this.userService = userService;
+    }
 
     @Override
     public List<Score> findAll() {

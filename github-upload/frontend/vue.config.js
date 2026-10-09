@@ -1,4 +1,8 @@
 const { defineConfig } = require('@vue/cli-service')
+
+// 后端地址：开发时把 /api、/questions 转发过去，浏览器看到的是同源请求，会话 Cookie 和 CSRF 令牌都能正常工作
+const backendTarget = process.env.VUE_APP_BACKEND_URL || 'http://localhost:8080'
+
 module.exports = defineConfig({
   transpileDependencies: true,
   lintOnSave: false, // 关闭 ESLint 保存时检查
@@ -9,6 +13,10 @@ module.exports = defineConfig({
     open: false, // 不自动打开浏览器
     hot: true, // 启用热重载
     historyApiFallback: true, // 支持HTML5 History API
+    proxy: {
+      '/api': { target: backendTarget },
+      '/questions': { target: backendTarget }
+    },
     allowedHosts: 'all', // 允许所有主机访问
     client: {
       overlay: {

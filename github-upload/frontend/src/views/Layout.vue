@@ -111,7 +111,8 @@
             <el-icon><Avatar /></el-icon>
             <span>个人中心</span>
           </el-menu-item>
-          <el-menu-item index="/settings">
+          <!-- 系统设置只对管理员开放 -->
+          <el-menu-item v-if="authStore.isAdmin" index="/settings">
             <el-icon><Tools /></el-icon>
             <span>系统设置</span>
           </el-menu-item>
@@ -157,8 +158,8 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { Icon } from '@iconify/vue'
 import { 
   House,
@@ -181,6 +182,7 @@ import {
 } from '@element-plus/icons-vue';
 
 const router = useRouter()
+const authStore = useAuthStore()
 const isCollapse = ref(false)
 
 // 校徽图片状态管理
@@ -192,8 +194,8 @@ const toggleSidebar = () => {
   // 你可能需要在这里添加实际改变侧边栏宽度的逻辑，例如通过修改一个CSS变量或直接操作DOM/父组件状态
 }
 
-const logout = () => {
-  localStorage.removeItem('token')
+const logout = async () => {
+  await authStore.logout()
   router.push('/login')
 }
 </script>

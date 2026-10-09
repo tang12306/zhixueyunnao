@@ -46,7 +46,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         boolean isStudent = authorities.stream()
                                  .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_STUDENT"));
         boolean isTeacher = authorities.stream()
-                                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_TEACHER"));
+                                 .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_TEACHER")
+                                         || grantedAuthority.getAuthority().equals("ROLE_ADMIN")); // 管理员同教师一样进入首页
 
         logger.debug("User authorities: {}, isStudent: {}, isTeacher: {}", authorities, isStudent, isTeacher);
 

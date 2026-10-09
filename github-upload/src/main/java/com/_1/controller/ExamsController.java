@@ -4,7 +4,6 @@ import com._1.entity.Exam;
 import com._1.entity.Question;
 import com._1.service.ExamService;
 import com._1.service.QuestionService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -14,11 +13,13 @@ import java.util.List;
 @Controller
 @RequestMapping("/exam-management")
 public class ExamsController {
-    @Autowired
-    private ExamService examService;
+    private final ExamService examService;
+    private final QuestionService questionService;
 
-    @Autowired
-    private QuestionService questionService;
+    public ExamsController(ExamService examService, QuestionService questionService) {
+        this.examService = examService;
+        this.questionService = questionService;
+    }
 
     @GetMapping
     public String exams(Model model) {

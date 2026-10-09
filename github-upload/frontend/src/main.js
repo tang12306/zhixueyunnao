@@ -26,6 +26,8 @@ import { ElLoading } from 'element-plus'
 
 // 导入错误处理工具
 import { initErrorHandler, createVueErrorHandler } from './utils/errorHandler'
+import { setUnauthorizedHandler } from './api'
+import { useAuthStore } from './stores/auth'
 
 // 初始化全局错误处理
 initErrorHandler()
@@ -41,8 +43,9 @@ app.component('Icon', Icon)
 app.component('el-loading', ElLoading)
 
 // 使用插件
-app.use(router)
+// pinia 要先于 router 安装：路由守卫里会用到登录状态
 app.use(pinia)
+app.use(router)
 app.use(ElementPlus, {
   locale: zhCn,
   size: 'default'
@@ -65,6 +68,15 @@ AOS.init({
   easing: 'ease-in-out',
   once: true,
   mirror: false
+})
+
+// 会话过期（任一接口返回 401）时回到登录页，登录后再回到当前页面
+setUnauthorizedHandler(() => {
+  useAuthStore(pinia).clear()
+  const current = router.currentRoute.value
+  if (current.path !== '/login') {
+    router.push({ path: '/login', query: { redirect: current.fullPath } })
+  }
 })
 
 app.mount('#app')

@@ -9,30 +9,14 @@
 
 ## 技术栈
 - 前端：Vue.js + Element Plus
-- 后端：Node.js + Express
-- 数据库：MongoDB
+- 后端：Spring Boot 3.3（Node.js 后端已下线）
+- 数据库：MySQL
 - AI接口：DeepSeek API
 
 ## 安装与运行
-1. 克隆项目
-2. 安装依赖
-   ```
-   cd frontend && npm install
-   cd ../backend && npm install
-   ```
-3. 启动项目
-   ```
-   # 前端
-   cd frontend && npm run serve
-   # 后端
-   cd backend && npm start
-   ```
+
+见仓库根目录的 [README.md](../README.md) 和 [README-Startup.md](../README-Startup.md)。
 
 ## 项目结构
-- frontend/：前端代码
-- backend/：后端代码
-  - models/：数据库模型
-  - routes/：API路由
-  - controllers/：业务逻辑
-  - services/：服务层
-  - utils/：工具函数 
+- frontend/：Vue 前端
+- src/：Spring Boot 后端

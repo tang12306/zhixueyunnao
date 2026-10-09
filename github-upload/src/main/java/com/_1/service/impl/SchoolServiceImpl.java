@@ -3,7 +3,6 @@ package com._1.service.impl;
 import com._1.entity.School;
 import com._1.repository.SchoolRepository;
 import com._1.service.SchoolService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -14,8 +13,11 @@ import java.util.Optional;
 @Service
 public class SchoolServiceImpl implements SchoolService {
 
-    @Autowired
-    private SchoolRepository schoolRepository;
+    private final SchoolRepository schoolRepository;
+
+    public SchoolServiceImpl(SchoolRepository schoolRepository) {
+        this.schoolRepository = schoolRepository;
+    }
 
     @Override
     public List<School> findAll() {

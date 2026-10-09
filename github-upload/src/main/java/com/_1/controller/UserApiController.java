@@ -1,129 +1,84 @@
 package com._1.controller;
 
+import com._1.core.exception.ApiException;
 import com._1.entity.User;
 import com._1.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/user")
 public class UserApiController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
-    /**
-     * 获取当前登录用户的信息
-     * @return 用户信息
-     */
+    public UserApiController(UserService userService) {
+        this.userService = userService;
+    }
+
+    /** 当前登录用户的信息 */
     @GetMapping("/current")
-    public ResponseEntity<?> getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-
-        Optional<User> userOptional = userService.findByUsername(username);
-
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            Map<String, Object> userMap = new HashMap<>();
-            userMap.put("id", user.getId());
-            userMap.put("username", user.getUsername());
-            userMap.put("name", user.getName());
-            userMap.put("email", user.getEmail());
-            userMap.put("role", user.getRole());
-            response.put("user", userMap);
-            return ResponseEntity.ok(response);
-        } else {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "用户不存在");
-            return ResponseEntity.ok(response);
-        }
+    public Map<String, Object> getCurrentUser(Authentication authentication) {
+        return userResponse(null, currentUser(authentication));
     }
 
-    /**
-     * 更新当前用户的个人信息
-     * @param userData 用户数据
-     * @return 更新结果
-     */
+    /** 更新当前用户的姓名、邮箱 */
     @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody Map<String, String> userData) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-
-        Optional<User> userOptional = userService.findByUsername(username);
-        
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            
-            // 更新用户信息
-            if (userData.containsKey("name")) {
-                user.setName(userData.get("name"));
-            }
-            if (userData.containsKey("email")) {
-                user.setEmail(userData.get("email"));
-            }
-            
-            // 保存更新后的用户信息
-            userService.save(user);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            Map<String, Object> userMap = new HashMap<>();
-            userMap.put("id", user.getId());
-            userMap.put("username", user.getUsername());
-            userMap.put("name", user.getName());
-            userMap.put("email", user.getEmail());
-            userMap.put("role", user.getRole());
-            response.put("user", userMap);
-            return ResponseEntity.ok(response);
-        } else {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "用户不存在");
-            return ResponseEntity.ok(response);
+    public Map<String, Object> updateProfile(@RequestBody Map<String, String> userData, Authentication authentication) {
+        User user = currentUser(authentication);
+        if (userData.containsKey("name")) {
+            user.setName(userData.get("name"));
         }
+        if (userData.containsKey("email")) {
+            user.setEmail(userData.get("email"));
+        }
+        return userResponse("个人信息已更新", userService.save(user));
     }
 
-    /**
-     * 修改当前用户的密码
-     * @param passwordData 密码数据
-     * @return 修改结果
-     */
+    /** 修改当前用户的密码，需要提供旧密码 */
     @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> passwordData) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-
+    public Map<String, Object> changePassword(@RequestBody Map<String, String> passwordData, Authentication authentication) {
         String oldPassword = passwordData.get("oldPassword");
         String newPassword = passwordData.get("newPassword");
-        
-        if (oldPassword == null || newPassword == null) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "旧密码和新密码不能为空");
-            return ResponseEntity.ok(response);
+        if (oldPassword == null || oldPassword.isEmpty() || newPassword == null || newPassword.isEmpty()) {
+            throw ApiException.badRequest("旧密码和新密码不能为空");
         }
-        
-        boolean result = userService.changePassword(username, oldPassword, newPassword);
-        
-        Map<String, Object> response = new HashMap<>();
-        if (result) {
-            response.put("success", true);
-            response.put("message", "密码修改成功");
-        } else {
-            response.put("success", false);
-            response.put("message", "密码修改失败，请确认旧密码是否正确");
+        if (newPassword.length() < 8) {
+            throw ApiException.badRequest("新密码至少需要 8 位");
         }
-        return ResponseEntity.ok(response);
+        if (!userService.changePassword(authentication.getName(), oldPassword, newPassword)) {
+            throw ApiException.badRequest("旧密码不正确");
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", true);
+        body.put("message", "密码修改成功");
+        return body;
     }
-} 
+
+    private User currentUser(Authentication authentication) {
+        // 会话里的用户被删除时按未登录处理
+        return userService.findByUsername(authentication.getName())
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "请先登录"));
+    }
+
+    private static Map<String, Object> userResponse(String message, User user) {
+        Map<String, Object> userMap = new LinkedHashMap<>();
+        userMap.put("id", user.getId());
+        userMap.put("username", user.getUsername());
+        userMap.put("name", user.getName());
+        userMap.put("email", user.getEmail());
+        userMap.put("role", user.getRole());
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", true);
+        if (message != null) {
+            body.put("message", message);
+        }
+        body.put("user", userMap);
+        return body;
+    }
+}

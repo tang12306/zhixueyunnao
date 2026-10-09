@@ -2,14 +2,17 @@
 
 ## 项目简介
 
-这是一个基于Spring Boot + Vue.js + Node.js的教育题库管理系统，支持智能出卷、题库管理、学生管理等功能。
+基于 Spring Boot + Vue.js 的教育题库管理系统，支持智能出卷、题库管理、学生管理等功能。
 
 ## 系统架构
 
-- **前端**: Vue.js 3 + Element Plus
-- **后端**: Spring Boot 2.7 + Node.js Express
-- **数据库**: MySQL + MongoDB
-- **容器化**: Docker + Docker Compose
+- **前端**: Vue.js 3 + Element Plus + Pinia（`frontend/`）
+- **后端**: Spring Boot 3.3 + Spring Security（会话 Cookie 登录）
+- **数据库**: MySQL 8（Docker）
+- **AI**: DeepSeek API（密钥只从环境变量读取）
+
+> 旧的 Node.js/Express 后端和 MongoDB 已下线并从仓库删除，所有接口都由 Spring Boot 提供。
+> 学生端暂未开放：学生账号和数据保留，但前端登录只接受教师和管理员账号。
 
 ## 主要功能模块
 
@@ -19,64 +22,64 @@
 4. **系统管理** - 用户权限、系统设置
 5. **组织管理** - 学校、学院、专业、班级层级管理
 6. **个人中心** - 用户信息管理
-7. **系统设置** - 系统参数配置
+7. **系统设置** - 系统参数配置（仅管理员）
 
 ## 快速开始
 
 ### 环境要求
 
 - Java 17+
-- Node.js 16+
+- Node.js 18+
 - Docker Desktop
-- Maven 3.6+
+- Maven 可选（仓库自带 Maven Wrapper `mvnw` / `mvnw.cmd`）
 
-### 启动步骤
-
-1. 克隆项目
-```bash
-git clone [repository-url]
-cd 教务题库系统
-```
-
-2. 配置本地环境变量
-
-数据库密码和 API 密钥不再硬编码。Windows PowerShell 示例：
+### 1. 配置 `.env`
 
 ```powershell
-$env:DB_USERNAME = 'root'
-$env:DB_PASSWORD = '填写你自己的本地数据库密码'
-# 如需 AI 功能，请填写从服务商获取的新密钥；不要提交到 Git
-$env:DEEPSEEK_API_KEY = '填写你自己的 API 密钥'
-# 仅在使用 src/main/application.yml 时需要独立的 JWT_SECRET
-$env:JWT_SECRET = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
-.\start-simple.bat
+copy .env.example .env
 ```
 
-`DB_PASSWORD` 同时用于 Docker MySQL root 用户和 Spring Boot 默认数据库连接。已有数据库卷请填写原先配置的数据库密码，修改环境变量不会自动更改现有数据库密码。若使用其他数据库用户，请相应设置 `DB_USERNAME` 和该用户的密码。`.env` 文件可供 Docker Compose 使用，但 Spring Boot 不会自动加载它；从已设置环境变量的同一终端启动 Java 服务。
+然后编辑 `.env`（不要加引号，`.env` 已被 Git 忽略）：
 
-3. 启动系统
+| 变量 | 说明 |
+| --- | --- |
+| `DB_PASSWORD` | 必填。Docker MySQL 的 root 密码，后端也用它连接数据库 |
+| `DB_USERNAME` | 默认 `root` |
+| `DEEPSEEK_API_KEY` | 使用 AI 出题时填写 |
+| `APP_ADMIN_USERNAME` / `APP_ADMIN_PASSWORD` | 数据库里还没有管理员时，启动时用它创建首个管理员（密码至少 8 位） |
+| `SPRING_PROFILES_ACTIVE` | 本地开发填 `dev`，会创建演示账号；生产环境留空 |
+| `COOKIE_SECURE` | 上线 HTTPS 后设为 `true` |
+| `CORS_ALLOWED_ORIGINS` | 前端与后端不同源时才需要，逗号分隔 |
+
+Docker Compose 和 Spring Boot 都会读取这个 `.env`（Spring Boot 需从 `github-upload` 目录启动）。已有数据库卷会保留原来的 root 密码，修改 `.env` 不会改变它。
+
+### 2. 启动
+
 ```bash
-# Windows
+# Windows：一键启动（MySQL + Spring Boot + Vue）
 start-simple.bat
 
-# 或手动启动各服务
-docker-compose up -d
-cd backend && npm install && npm start
+# 或手动启动
+docker compose up -d
+mvnw.cmd spring-boot:run          # macOS/Linux: ./mvnw spring-boot:run
 cd frontend && npm install && npm run serve
-mvn spring-boot:run
 ```
 
-4. 访问系统
-- 前端地址: http://localhost:8083
-- 后端API: http://localhost:8080
-- Node.js API: http://localhost:5000
+停止：`stop.bat`。
 
-### 默认账号
+表结构由 Flyway 管理（`src/main/resources/db/migration`），后端启动时自动执行还没执行过的脚本，Hibernate 只校验实体和表是否一致。以前靠 `ddl-auto=update` 建好的库，首次启动会自动记为 V1 基线，再执行后面的脚本。修改表结构时新增 `V<序号>__说明.sql`，不要改已经发布的脚本。
 
-- 用户名: admin
-- 密码: admin123
+### 3. 访问
 
-Spring Boot 初始化器还提供虚构教师 `demo.teacher / DemoTeacher123!` 和58个虚构学生 `990000001` ~ `990000058`（姓名为 `示例学生001` ~ `示例学生058`，初始密码等于虚构学号）。这些数据仅用于本地演示，禁止作为生产账号使用。
+- 前端: http://localhost:8083（开发服务器把 `/api`、`/questions` 代理到后端，生产环境由 Nginx 做同样的转发）
+- 后端: http://localhost:8080（旧版 Thymeleaf 页面也在这里）
+
+### 账号
+
+- **生产 / 默认**：没有任何内置账号。首个管理员由 `APP_ADMIN_USERNAME` / `APP_ADMIN_PASSWORD` 创建。
+- **dev 配置**（`SPRING_PROFILES_ACTIVE=dev`）：额外创建虚构的演示管理员 `demo.admin / DemoAdmin123!`、演示教师 `demo.teacher / DemoTeacher123!` 和58个虚构学生 `990000001` ~ `990000058`（姓名为 `示例学生001` ~ `示例学生058`，初始密码等于虚构学号）。这些密码是公开的，只能用于本地演示。
+
+详见 [系统账号说明](docs/系统账号密码说明.md)。
 
 ### 隐私说明
 
@@ -85,18 +88,28 @@ Spring Boot 初始化器还提供虚构教师 `demo.teacher / DemoTeacher123!` �
 - 普通提交不会清除旧 Git 历史；已泄露的密码和 API 密钥应立即更换，历史清理需单独处理。
 - 可运行 `node scripts/check-public-data.cjs` 检查示例数据和敏感凭据是否符合公开仓库规范。
 
+## 测试与 CI
+
+```bash
+mvnw.cmd verify                   # 后端测试，使用 H2 内存库，不需要 MySQL
+cd frontend && npm run build      # 前端构建
+node scripts/check-public-data.cjs
+```
+
+GitHub Actions（仓库根目录 `.github/workflows/ci.yml`）在每次推送和 PR 时运行这三项。
+
 ## 项目结构
 
 ```
-├── src/                    # Spring Boot源码
-├── frontend/              # Vue.js前端
-├── backend/               # Node.js后端
-├── docker/                # Docker配置
+├── src/                   # Spring Boot 源码（数据库迁移脚本在 src/main/resources/db/migration）
+├── frontend/              # Vue.js 前端
 ├── docs/                  # 项目文档
+├── scripts/               # 检查脚本
+├── .env.example           # 环境变量模板
 ├── start-simple.bat       # 启动脚本
-├── stop.bat              # 停止脚本
-├── docker-compose.yml    # Docker编排
-└── pom.xml               # Maven配置
+├── stop.bat               # 停止脚本
+├── docker-compose.yml     # Docker 编排（仅 MySQL）
+└── pom.xml                # Maven 配置
 ```
 
 ## 开发说明
@@ -104,18 +117,10 @@ Spring Boot 初始化器还提供虚构教师 `demo.teacher / DemoTeacher123!` �
 详细的开发文档请参考 `docs/` 目录下的相关文档：
 
 - [系统启动说明](README-Startup.md)
-- [项目主文档](docs/项目主README.md)
 - [数据库设计](docs/数据库表结构详细设计.md)
 - [系统账号说明](docs/系统账号密码说明.md)
 
-## 技术特色
-
-- 前后端分离架构
-- 微服务设计理念
-- Docker容器化部署
-- AI智能出卷功能
-- 响应式界面设计
-- 完整的权限管理
+`docs/` 下其余的“修复说明”类文档是历史记录，其中提到的 Node.js 后端、匿名接口等已不再适用。
 
 ## 许可证
 
