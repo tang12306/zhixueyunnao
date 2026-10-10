@@ -11,15 +11,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 /**
  * 每次启动都会执行的基础数据初始化：学校、系统设置、首个管理员。
  * 演示账号只在 dev 环境创建，见 {@link DemoDataInitializer}。
+ * 在演示数据之前执行：否则演示管理员先建好，.env 里配置的管理员就不会再创建。
  */
 @Component
-@Order(1)
+@Order(0)
 public class DataInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
@@ -28,15 +31,18 @@ public class DataInitializer implements CommandLineRunner {
     private final UserService userService;
     private final SchoolRepository schoolRepository;
     private final SettingService settingService;
+    private final Environment environment;
     private final String adminUsername;
     private final String adminPassword;
 
     public DataInitializer(UserService userService, SchoolRepository schoolRepository, SettingService settingService,
+                           Environment environment,
                            @Value("${app.bootstrap-admin.username:}") String adminUsername,
                            @Value("${app.bootstrap-admin.password:}") String adminPassword) {
         this.userService = userService;
         this.schoolRepository = schoolRepository;
         this.settingService = settingService;
+        this.environment = environment;
         this.adminUsername = adminUsername;
         this.adminPassword = adminPassword;
     }
@@ -62,7 +68,10 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
         if (adminUsername.isBlank() || adminPassword.isBlank()) {
-            logger.warn("系统中还没有管理员账号。请在 .env 中设置 APP_ADMIN_USERNAME 和 APP_ADMIN_PASSWORD 后重启。");
+            // dev 环境接下来会创建演示管理员，不用提示
+            if (!environment.acceptsProfiles(Profiles.of("dev"))) {
+                logger.warn("系统中还没有管理员账号。请在 .env 中设置 APP_ADMIN_USERNAME 和 APP_ADMIN_PASSWORD 后重启。");
+            }
             return;
         }
         if (adminPassword.length() < MIN_ADMIN_PASSWORD_LENGTH) {

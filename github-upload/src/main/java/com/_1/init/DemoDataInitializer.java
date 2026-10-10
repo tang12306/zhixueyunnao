@@ -14,11 +14,11 @@ import java.util.List;
 
 /**
  * 本地演示数据，只在 dev 环境创建。账号密码是公开的，生产环境不要开启 dev profile。
- * 在 {@link DataInitializer} 之前执行，这样 dev 环境有了演示管理员，就不会再提示缺少管理员。
+ * 在 {@link DataInitializer} 之后执行，.env 里配置的管理员和演示账号都会创建。
  */
 @Component
 @Profile("dev")
-@Order(0)
+@Order(1)
 public class DemoDataInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DemoDataInitializer.class);
